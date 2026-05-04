@@ -1,0 +1,33 @@
+:root {
+  --bg: #0a0a0f;
+  --surface: #13131a;
+  --border: #1e1e2a;
+  --text: #e4e4ec;
+  --text-muted: #78789a;
+  --accent: #7c5cfc;
+  --accent-glow: rgba(124, 92, 252, 0.15);
+  --success: #34d399;
+  --warning: #fbbf24;
+
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}

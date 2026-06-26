@@ -1,5 +1,5 @@
-appId: app.weldable
-productName: Weldable
+appId: app.hoist
+productName: Hoist
 directories:
   output: release
 files:

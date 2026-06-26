@@ -9,7 +9,7 @@ function createWindow() {
     height: 680,
     minWidth: 640,
     minHeight: 480,
-    title: 'Weldable',
+    title: 'Hoist',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,

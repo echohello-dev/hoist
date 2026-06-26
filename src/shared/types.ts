@@ -1,4 +1,4 @@
-export interface WeldableAPI {
+export interface HoistAPI {
   platform: NodeJS.Platform
   invoke: (channel: string, ...args: unknown[]) => Promise<unknown>
 }

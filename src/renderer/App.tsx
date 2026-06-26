@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import type { WeldableAPI } from '../shared/types'
+import type { HoistAPI } from '../shared/types'
 
 declare global {
   interface Window {
-    weldable: WeldableAPI
+    hoist: HoistAPI
   }
 }
 
@@ -44,7 +44,7 @@ function Sidebar({ step, onNavigate }: { step: Step; onNavigate: (s: Step) => vo
     <aside style={styles.sidebar}>
       <div style={styles.logo}>
         <span style={styles.logoIcon}>&#x26A1;</span>
-        weldable
+        hoist
       </div>
       <nav style={styles.nav}>
         {steps.map((s, i) => (

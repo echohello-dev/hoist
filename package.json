@@ -1,7 +1,7 @@
 {
-  "name": "weldable",
+  "name": "hoist",
   "version": "0.0.0",
-  "description": "Install agent harnesses. Configure providers. Wire up your gateway.",
+  "description": "Install agent harnesses. Manage your keys. Wire up your gateway.",
   "author": "echoHello",
   "license": "UNLICENSED",
   "private": true,

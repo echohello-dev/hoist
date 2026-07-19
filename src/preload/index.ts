@@ -14,9 +14,14 @@ const api: HoistAPI = {
     list: () => ipcRenderer.invoke(CHANNELS.harnessList),
     discover: () => ipcRenderer.invoke(CHANNELS.harnessDiscover),
     install: (id) => ipcRenderer.invoke(CHANNELS.harnessInstall, id),
+    configShow: (id) => ipcRenderer.invoke(CHANNELS.harnessConfigShow, id),
   },
   provider: {
     list: () => ipcRenderer.invoke(CHANNELS.providerList),
+  },
+  gateway: {
+    list: () => ipcRenderer.invoke(CHANNELS.gatewayList),
+    apply: (req) => ipcRenderer.invoke(CHANNELS.gatewayApply, req),
   },
   probe: {
     run: (req) => ipcRenderer.invoke(CHANNELS.probeRun, req),

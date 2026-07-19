@@ -8,6 +8,9 @@ export const CHANNELS = {
   harnessInstall: 'harness:install',
   providerList: 'provider:list',
   probeRun: 'probe:run',
+  gatewayList: 'gateway:list',
+  gatewayApply: 'gateway:apply',
+  harnessConfigShow: 'harness:configShow',
 } as const
 
 export type ChannelName = (typeof CHANNELS)[keyof typeof CHANNELS]

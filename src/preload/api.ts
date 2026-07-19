@@ -12,9 +12,14 @@ export interface HoistAPI {
     list: () => Promise<ToolInstallSpec[]>
     discover: () => Promise<Record<string, InstalledToolSummary>>
     install: (id: string) => Promise<HarnessInstallResponse>
+    configShow: (harnessId: string) => Promise<HarnessConfigView>
   }
   provider: {
     list: () => Promise<ProviderSummary[]>
+  }
+  gateway: {
+    list: () => Promise<GatewaySummary[]>
+    apply: (req: GatewayApplyRequest) => Promise<GatewayApplyResponse>
   }
   probe: {
     run: (req: ProbeRequest) => Promise<ProbeResponse>
@@ -65,6 +70,19 @@ export interface HarnessInstallResponse {
   tool?: InstalledToolSummary
 }
 
+export interface HarnessConfigView {
+  ok: boolean
+  error?: string
+  harnessId: string
+  path?: string
+  exists: boolean
+  /** Excerpt of the current config relevant to hoist's wiring. */
+  excerpt?: string
+  /** Computed env vars hoist will write. */
+  envHint?: Record<string, string>
+  notes?: string[]
+}
+
 export interface ProviderSummary {
   id: string
   label: string
@@ -73,6 +91,52 @@ export interface ProviderSummary {
   baseUrlEnv?: string
   defaultBaseUrl?: string
   notes?: string
+}
+
+export interface GatewaySummary {
+  id: string
+  label: string
+  baseUrl: string
+  selfHostedHint?: string
+  docUrl?: string
+  endpoints: { openai?: string; anthropic?: string }
+  auth: { header: string; scheme: string; envVar: string }
+  modelIdFormat: string
+  nativeProviders: string[]
+  notes?: string
+  /** Placeholders in `baseUrl` the user must fill in (e.g. "<account_id>"). */
+  placeholders: string[]
+}
+
+export interface GatewayApplyRequest {
+  gatewayId: string | null
+  providerId: string
+  /** Resolved gateway base URL (placeholders filled). */
+  baseUrl: string
+  /** Resolved API key to inject into harnesses. */
+  apiKey: string
+  /** Harness ids to apply to (e.g. ["claude-code","codex","opencode"]). */
+  harnessIds: string[]
+  /** Display label for the config record. */
+  label?: string
+}
+
+export interface HarnessWiringResult {
+  harnessId: string
+  harnessName: string
+  ok: boolean
+  error?: string
+  path?: string
+  note?: string
+  envHint?: Record<string, string>
+}
+
+export interface GatewayApplyResponse {
+  ok: boolean
+  error?: string
+  wiring?: HarnessWiringResult[]
+  effectiveBaseUrl?: string
+  unresolvedPlaceholders?: string[]
 }
 
 export interface ProbeRequest {

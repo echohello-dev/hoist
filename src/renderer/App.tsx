@@ -334,28 +334,291 @@ function KeysStep({ onBack, onNext }: { onBack: () => void; onNext: () => void }
 }
 
 function GatewayStep({ onBack, onNext }: { onBack: () => void; onNext: () => void }) {
+  const [gateways, setGateways] = useState<{
+    id: string
+    label: string
+    baseUrl: string
+    selfHostedHint?: string
+    docUrl?: string
+    endpoints: { openai?: string; anthropic?: string }
+    auth: { header: string; scheme: string; envVar: string }
+    modelIdFormat: string
+    nativeProviders: string[]
+    notes?: string
+    placeholders: string[]
+  }[]>([])
+  const [providers, setProviders] = useState<{
+    id: string
+    label: string
+    envKeys: string[]
+    defaultBaseUrl?: string
+    notes?: string
+  }[]>([])
+  const [harnesses, setHarnesses] = useState<{ id: string; name: string }[]>([])
+  const [discovered, setDiscovered] = useState<Record<string, { installed: boolean; version: string | null }>>({})
+
+  const [gatewayId, setGatewayId] = useState<string>('direct')
+  const [providerId, setProviderId] = useState<string>('anthropic')
   const [baseUrl, setBaseUrl] = useState('')
+  const [apiKey, setApiKey] = useState('')
+  const [harnessIds, setHarnessIds] = useState<Record<string, boolean>>({})
+  const [applying, setApplying] = useState(false)
+  const [results, setResults] = useState<{
+    harnessId: string
+    harnessName: string
+    ok: boolean
+    error?: string
+    path?: string
+    note?: string
+    envHint?: Record<string, string>
+  }[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [effectiveBaseUrl, setEffectiveBaseUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    refreshAll()
+  }, [])
+
+  async function refreshAll() {
+    const [g, p, h, d] = await Promise.all([
+      window.hoist.gateway.list(),
+      window.hoist.provider.list(),
+      window.hoist.harness.list(),
+      window.hoist.harness.discover(),
+    ])
+    setGateways(g)
+    setProviders(p)
+    setHarnesses(h.map((x) => ({ id: x.id, name: x.name })))
+    const map = h.map((x) => ({ id: x.id, name: x.name }))
+    setHarnessIds(
+      map.reduce<Record<string, boolean>>((acc, x) => {
+        acc[x.id] = !!d[x.id]?.path
+        return acc
+      }, {}),
+    )
+    setDiscovered(
+      h.reduce<Record<string, { installed: boolean; version: string | null }>>((acc, _id, i) => {
+        const x = h[i]
+        acc[x.id] = { installed: !!d[x.id]?.path, version: d[x.id]?.version ?? null }
+        return acc
+      }, {}),
+    )
+    const initialProvider = p.find((x) => x.id === 'anthropic') ?? p[0]
+    if (initialProvider) {
+      setProviderId(initialProvider.id)
+      setBaseUrl(initialProvider.defaultBaseUrl ?? '')
+    }
+  }
+
+  const selectedGateway = gatewayId === 'direct' ? null : gateways.find((g) => g.id === gatewayId)
+
+  function pickGateway(g: { id: string; baseUrl: string } | null) {
+    if (!g) {
+      const direct = providers.find((p) => p.id === providerId)
+      setBaseUrl(direct?.defaultBaseUrl ?? '')
+    } else {
+      setBaseUrl(g.baseUrl)
+    }
+  }
+
+  function pickProvider(p: { id: string; defaultBaseUrl?: string }) {
+    setProviderId(p.id)
+    if (gatewayId === 'direct') setBaseUrl(p.defaultBaseUrl ?? '')
+  }
+
+  async function apply() {
+    setError(null)
+    setResults([])
+    setEffectiveBaseUrl(null)
+    setApplying(true)
+    try {
+      const selectedHarnessIds = harnesses.filter((h) => harnessIds[h.id]).map((h) => h.id)
+      if (selectedHarnessIds.length === 0) {
+        setError('Select at least one harness to apply.')
+        return
+      }
+      if (!apiKey.trim()) {
+        setError('Paste an API key (or gateway token) first.')
+        return
+      }
+      const res = await window.hoist.gateway.apply({
+        gatewayId: gatewayId === 'direct' ? null : gatewayId,
+        providerId,
+        baseUrl,
+        apiKey: apiKey.trim(),
+        harnessIds: selectedHarnessIds,
+      })
+      if (!res.ok) {
+        setError(res.error ?? 'Apply failed.')
+        return
+      }
+      setResults(res.wiring ?? [])
+      setEffectiveBaseUrl(res.effectiveBaseUrl ?? baseUrl)
+    } catch (err) {
+      setError(errMsg(err))
+    } finally {
+      setApplying(false)
+    }
+  }
+
+  const providerObj = providers.find((p) => p.id === providerId)
+
   return (
     <div style={styles.step}>
       <h2 style={styles.heading}>Gateway routing</h2>
-      <p style={styles.subtitle}>Point your tools at an enterprise AI gateway (writes <code style={styles.code}>ANTHROPIC_BASE_URL</code> config in a later release).</p>
+      <p style={styles.subtitle}>Point your tools at a hosted gateway or paste any OpenAI/Anthropic-compatible URL. Hoist writes per-harness config (Claude Code <code style={styles.code}>~/.claude/settings.json</code>, Codex <code style={styles.code}>config.toml</code>, OpenCode <code style={styles.code}>opencode.json</code>).</p>
 
-      <div style={styles.card}>
-        <div style={styles.cardTitle}>Base URL</div>
-        <input
-          placeholder="https://ai-gateway.your-org.com"
-          style={styles.input}
-          value={baseUrl}
-          onChange={(e) => setBaseUrl(e.target.value)}
-        />
+      <div style={styles.subheading}>1. Gateway</div>
+      <div style={styles.grid}>
+        <button
+          onClick={() => {
+            setGatewayId('direct')
+            pickGateway(null)
+          }}
+          style={{ ...styles.gatewayCard, ...(gatewayId === 'direct' ? styles.gatewayCardActive : {}) }}
+        >
+          <div style={styles.gatewayCardTitle}>Direct (no gateway)</div>
+          <div style={styles.gatewayCardSub}>Use each provider's native API URL.</div>
+        </button>
+        {gateways.map((g) => (
+          <button
+            key={g.id}
+            onClick={() => {
+              setGatewayId(g.id)
+              pickGateway({ id: g.id, baseUrl: g.baseUrl })
+            }}
+            style={{ ...styles.gatewayCard, ...(gatewayId === g.id ? styles.gatewayCardActive : {}) }}
+          >
+            <div style={styles.gatewayCardTitle}>{g.label}</div>
+            <div style={styles.gatewayCardSub}>{g.baseUrl || '(custom URL)'}</div>
+            {g.placeholders.length > 0 && (
+              <div style={styles.gatewayCardWarn}>fill in {g.placeholders.map((p) => `<${p}>`).join(', ')}</div>
+            )}
+          </button>
+        ))}
       </div>
+
+      <div style={styles.subheading}>2. Provider & base URL</div>
+      <div style={{ ...styles.card, ...styles.cardVertical }}>
+        <div>
+          <div style={styles.cardTitle}>Provider</div>
+          <select
+            style={{ ...styles.input, width: '100%' }}
+            value={providerId}
+            onChange={(e) => {
+              const p = providers.find((x) => x.id === e.target.value)
+              if (p) pickProvider(p)
+            }}
+          >
+            {providers.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label} {p.envKeys.length > 0 ? `(${p.envKeys[0]})` : '(cloud creds)'}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <div style={styles.cardTitle}>Base URL</div>
+          <input
+            style={{ ...styles.input, width: '100%' }}
+            value={baseUrl}
+            placeholder="https://gateway.example.com"
+            onChange={(e) => setBaseUrl(e.target.value)}
+          />
+          {selectedGateway?.selfHostedHint && (
+            <div style={styles.envHint}>{selectedGateway.selfHostedHint}</div>
+          )}
+          {selectedGateway && (
+            <div style={styles.gatewayDoc}>
+              <span>
+                Endpoint: <code style={styles.code}>{selectedGateway.endpoints.anthropic ?? selectedGateway.endpoints.openai ?? '/v1'}</code> · Auth: <code style={styles.code}>{selectedGateway.auth.header}</code>
+                {selectedGateway.auth.scheme && selectedGateway.auth.scheme !== 'raw' ? ` (${selectedGateway.auth.scheme})` : ''} · Env: <code style={styles.code}>{selectedGateway.auth.envVar}</code>
+              </span>
+              {selectedGateway.docUrl && (
+                <a href={selectedGateway.docUrl} target="_blank" rel="noreferrer" style={styles.docLink}>docs ↗</a>
+              )}
+            </div>
+          )}
+          {providerObj?.notes && (
+            <div style={styles.envHint}>{providerObj.notes}</div>
+          )}
+        </div>
+
+        <div>
+          <div style={styles.cardTitle}>API key / token</div>
+          <input
+            style={{ ...styles.input, width: '100%' }}
+            type="password"
+            placeholder={providerObj?.envKeys?.[0] ?? 'paste token'}
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+          />
+          <div style={styles.envHint}>Encrypted at rest in OS keychain via safeStorage.</div>
+        </div>
+      </div>
+
+      <div style={styles.subheading}>3. Apply to harnesses</div>
+      <div style={styles.cardList}>
+        {harnesses.map((h) => {
+          const inst = discovered[h.id]
+          return (
+            <label key={h.id} style={styles.harnessRow}>
+              <input
+                type="checkbox"
+                checked={!!harnessIds[h.id]}
+                onChange={(e) => setHarnessIds((s) => ({ ...s, [h.id]: e.target.checked }))}
+              />
+              <span style={styles.harnessName}>{h.name}</span>
+              <span style={styles.envHint}>
+                {inst?.installed ? `installed · ${inst.version ?? '?'}` : 'not installed'}
+              </span>
+            </label>
+          )
+        })}
+      </div>
+
+      {error && <div style={styles.error}>{error}</div>}
+
+      {results.length > 0 && (
+        <div style={styles.resultsBlock}>
+          <div style={styles.subheading}>Wiring results</div>
+          {results.map((r, i) => (
+            <div key={i} style={{ ...styles.resultRow, ...(r.ok ? styles.resultRowOk : styles.resultRowBad) }}>
+              <div style={{ fontWeight: 600 }}>{r.harnessName}</div>
+              {r.error && <div style={{ fontSize: 12 }}>{r.error}</div>}
+              {r.path && <div style={styles.envHint}>{r.path}</div>}
+              {r.note && <div style={styles.envHint}>{r.note}</div>}
+              {r.envHint && (
+                <pre style={styles.codeBlock}>
+                  {Object.entries(r.envHint).map(([k, v]) => `${k} = ${v}`).join('\n')}
+                </pre>
+              )}
+            </div>
+          ))}
+          {effectiveBaseUrl && (
+            <div style={styles.envHint}>Effective base URL: <code style={styles.code}>{effectiveBaseUrl}</code></div>
+          )}
+        </div>
+      )}
 
       <div style={styles.stepActions}>
         <button style={styles.secondaryBtn} onClick={onBack}>
           Back
         </button>
-        <button style={styles.primaryBtn} onClick={onNext}>
-          Skip for now
+        <button
+          style={{ ...styles.secondaryBtn }}
+          onClick={onNext}
+          disabled={applying}
+        >
+          Skip
+        </button>
+        <button
+          style={styles.primaryBtn}
+          onClick={apply}
+          disabled={applying || !baseUrl || !apiKey}
+        >
+          {applying ? 'Applying…' : 'Apply wiring'}
         </button>
       </div>
     </div>
@@ -632,5 +895,119 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 8,
     fontSize: 13,
     marginBottom: 16,
+  },
+  subheading: {
+    fontSize: 12,
+    fontWeight: 600,
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.05em',
+    color: 'var(--text-muted)',
+    marginBottom: 10,
+    marginTop: 24,
+  },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+    gap: 8,
+    marginBottom: 16,
+  },
+  gatewayCard: {
+    textAlign: 'left' as const,
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderRadius: 10,
+    padding: '12px 14px',
+    color: 'var(--text)',
+    cursor: 'pointer',
+  },
+  gatewayCardActive: {
+    borderColor: 'var(--accent)',
+    boxShadow: '0 0 0 1px var(--accent-glow)',
+  },
+  gatewayCardTitle: {
+    fontSize: 13,
+    fontWeight: 600,
+  },
+  gatewayCardSub: {
+    fontSize: 11,
+    color: 'var(--text-muted)',
+    marginTop: 2,
+    fontFamily: 'ui-monospace, SFMono-Regular, monospace',
+    wordBreak: 'break-all' as const,
+  },
+  gatewayCardWarn: {
+    fontSize: 11,
+    color: '#fbbf24',
+    marginTop: 4,
+  },
+  gatewayDoc: {
+    marginTop: 8,
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap' as const,
+    gap: 8,
+    fontSize: 12,
+  },
+  docLink: {
+    color: 'var(--accent)',
+    textDecoration: 'none',
+    fontSize: 11,
+  },
+  select: {
+    width: '100%',
+    background: 'var(--bg)',
+    color: 'var(--text)',
+    border: '1px solid var(--border)',
+    borderRadius: 8,
+    padding: '10px 14px',
+    fontSize: 14,
+    outline: 'none',
+    marginTop: 8,
+    fontFamily: 'inherit',
+  },
+  harnessRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderRadius: 10,
+    padding: '12px 14px',
+    fontSize: 13,
+    cursor: 'pointer',
+  },
+  harnessName: {
+    flex: 1,
+    fontWeight: 500,
+  },
+  resultsBlock: {
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  resultRow: {
+    border: '1px solid var(--border)',
+    borderRadius: 10,
+    padding: '12px 16px',
+    marginBottom: 6,
+    fontSize: 13,
+  },
+  resultRowOk: {
+    borderColor: 'rgba(74, 222, 128, 0.3)',
+    background: 'rgba(74, 222, 128, 0.04)',
+  },
+  resultRowBad: {
+    borderColor: 'rgba(255, 107, 107, 0.3)',
+    background: 'rgba(255, 107, 107, 0.04)',
+  },
+  codeBlock: {
+    background: 'var(--bg)',
+    border: '1px solid var(--border)',
+    borderRadius: 6,
+    padding: '8px 12px',
+    margin: '8px 0 0',
+    fontSize: 11,
+    fontFamily: 'ui-monospace, SFMono-Regular, monospace',
+    overflow: 'auto',
   },
 }

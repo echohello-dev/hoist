@@ -16,5 +16,5 @@
       "@hoist/shared/*": ["src/shared/*"]
     }
   },
-  "include": ["src", "../src/shared"]
+  "include": ["src", "../src/main", "../src/shared", "../src/main/providers/catalog.source.json", "../src/main/gateways/catalog.source.json"]
 }

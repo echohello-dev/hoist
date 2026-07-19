@@ -16,6 +16,9 @@
     "start": "electron dist/main/index.js",
     "lint": "eslint src --ext .ts,.tsx",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.json --noEmit",
+    "gen:catalog": "node scripts/gen-catalog.mjs",
+    "prebuild": "npm run gen:catalog",
+    "prebuild:renderer": "npm run gen:catalog",
     "package": "npm run build && electron-builder"
   },
   "dependencies": {

@@ -1,30 +1,26 @@
-export interface ProviderEntry {
-  id: string
-  label: string
-  aliases?: string[]
-  featured?: boolean
-  envKeys: string[]
-  baseUrlEnv?: string
-  defaultBaseUrl?: string
-  notes?: string
+import { PROVIDER_CATALOG, findProvider, type ProviderEntry } from '../../../src/main/providers/catalog'
+export { PROVIDER_CATALOG, findProvider, type ProviderEntry } from '../../../src/main/providers/catalog'
+
+import { GATEWAY_CATALOG, findGateway, type GatewayEntry } from '../../../src/main/gateways'
+export { GATEWAY_CATALOG, findGateway, type GatewayEntry } from '../../../src/main/gateways'
+
+import {
+  selectAnthropicEndpoint,
+  selectOpenAIEndpoint,
+  unresolvedPlaceholders,
+} from '../../../src/main/gateways/resolve'
+
+export { selectAnthropicEndpoint, selectOpenAIEndpoint, unresolvedPlaceholders }
+
+/** CLI-context helper: list provider entries with envKeys defaulted to []. */
+export function listProviders(): (ProviderEntry & { envKeys: string[] })[] {
+  return PROVIDER_CATALOG.map((p) => ({ ...p, envKeys: p.envKeys ?? [] }))
 }
 
-export const PROVIDER_CATALOG: ProviderEntry[] = [
-  {
-    id: 'anthropic',
-    label: 'Anthropic',
-    aliases: ['claude'],
-    featured: true,
-    envKeys: ['ANTHROPIC_API_KEY'],
-    baseUrlEnv: 'ANTHROPIC_BASE_URL',
-    defaultBaseUrl: 'https://api.anthropic.com',
-    notes: 'Claude API. Look for `sk-ant-…` keys.',
-  },
-]
-
-export function findProvider(idOrAlias: string): ProviderEntry | undefined {
-  const lower = idOrAlias.toLowerCase()
-  return PROVIDER_CATALOG.find(
-    (p) => p.id === lower || p.aliases?.some((a) => a.toLowerCase() === lower),
-  )
+/** CLI-context helper: list gateway entries with `placeholders` resolved. */
+export function listGateways() {
+  return GATEWAY_CATALOG.map((g) => ({
+    ...g,
+    placeholders: unresolvedPlaceholders(g.baseUrl),
+  }))
 }

@@ -16,12 +16,12 @@ export async function probeProvider(provider: ProviderEntry, apiKey: string, bas
     return { valid: false, status: 'invalid', detail: 'No API key supplied.', checkedAt }
   }
   if (provider.id === 'anthropic') {
-    return probeAnthropic(apiKey, baseUrl ?? provider.defaultBaseUrl ?? 'https://api.anthropic.com')
+    return probeAnthropic({ apiKey, baseUrl: baseUrl ?? provider.defaultBaseUrl ?? 'https://api.anthropic.com' })
   }
   return { valid: false, status: 'error', detail: `No probe implemented for "${provider.id}".`, checkedAt }
 }
 
-async function probeAnthropic(apiKey: string, baseUrl: string): Promise<ProbeResult> {
+export async function probeAnthropic({ apiKey, baseUrl }: { apiKey: string; baseUrl: string }): Promise<ProbeResult> {
   const checkedAt = new Date().toISOString()
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)

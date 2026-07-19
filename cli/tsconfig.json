@@ -14,7 +14,27 @@
     "paths": {
       "@hoist/shared": ["src/shared/index.ts"],
       "@hoist/shared/*": ["src/shared/*"]
-    }
+    },
+    "types": ["node"]     
   },
-  "include": ["src", "../src/main", "../src/shared", "../src/main/providers/catalog.source.json", "../src/main/gateways/catalog.source.json"]
+  "include": [
+    "src",
+    "../src/main/providers/catalog.ts",
+    "../src/main/providers/types.ts",
+    "../src/main/providers/catalog.generated.ts",
+    "../src/main/providers/catalog.source.json",
+    "../src/main/gateways/index.ts",
+    "../src/main/gateways/types.ts",
+    "../src/main/gateways/resolve.ts",
+    "../src/main/gateways/catalog.generated.ts",
+    "../src/main/gateways/catalog.source.json",
+    "../src/main/wiring/index.ts",
+    "../src/main/wiring/claudeCode.ts",
+    "../src/main/wiring/codex.ts",
+    "../src/main/wiring/openCode.ts",
+    "../src/main/fsutil.ts",
+    "../src/shared/index.ts",
+    "../src/shared/channels.ts",
+    "../src/shared/types.ts"
+  ]
 }

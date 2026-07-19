@@ -16,5 +16,17 @@ export interface ProviderEntry {
   notes?: string
 }
 
-// Populated by scripts/gen-catalog.ts in Phase 2 (ADR-0002).
-export const PROVIDER_CATALOG: ProviderEntry[] = []
+export const PROVIDER_CATALOG: ProviderEntry[] = [
+  {
+    id: 'anthropic',
+    label: 'Anthropic',
+    aliases: ['claude'],
+    featured: true,
+    envKeys: ['ANTHROPIC_API_KEY'],
+    baseUrlEnv: 'ANTHROPIC_BASE_URL',
+    authType: 'api_key',
+    probeKind: 'anthropicModels',
+    defaultBaseUrl: 'https://api.anthropic.com',
+    notes: 'Claude API. Look for `sk-ant-…` keys.',
+  },
+]

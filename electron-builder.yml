@@ -1,0 +1,19 @@
+appId: app.hoist
+productName: Hoist
+directories:
+  output: release
+files:
+  - dist/**/*
+mac:
+  target:
+    - dmg
+    - zip
+  artifactName: ${name}-${version}-mac-${arch}.${ext}
+win:
+  target:
+    - nsis
+  artifactName: ${name}-${version}-win-${arch}.${ext}
+linux:
+  target:
+    - AppImage
+  artifactName: ${name}-${version}-linux-${arch}.${ext}

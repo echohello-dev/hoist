@@ -1,14 +1,15 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'path'
+import { registerIpcHandlers } from './ipc'
 
 let mainWindow: BrowserWindow | null = null
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 900,
-    height: 680,
-    minWidth: 640,
-    minHeight: 480,
+    width: 1024,
+    height: 720,
+    minWidth: 720,
+    minHeight: 540,
     title: 'Hoist',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -30,7 +31,10 @@ function createWindow() {
   })
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  registerIpcHandlers()
+  createWindow()
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

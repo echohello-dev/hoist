@@ -1,0 +1,27 @@
+{
+  "packages": {
+    ".": {
+      "release-type": "node",
+      "include-component-in-tag": false,
+      "versioning": "calver",
+      "calendar-versioning": "yyyy.mm.patch"
+    },
+    "cli": {
+      "release-type": "node",
+      "include-component-in-tag": true,
+      "component": "cli",
+      "versioning": "calver",
+      "calendar-versioning": "yyyy.mm.patch"
+    }
+  },
+  "changelog-sections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance" },
+    { "type": "docs", "section": "Documentation" },
+    { "type": "chore", "section": "Chores", "hidden": false },
+    { "type": "refactor", "section": "Refactors" },
+    { "type": "build", "section": "Build System", "hidden": true }
+  ],
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json"
+}

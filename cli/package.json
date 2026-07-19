@@ -1,0 +1,28 @@
+{
+  "name": "@hoist/cli",
+  "version": "0.0.0",
+  "description": "Hoist CLI - terminal setup for AI coding agents.",
+  "author": "echoHello",
+  "license": "UNLICENSED",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "hoist": "./bin/run.js"
+  },
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "build:bin": "bun build src/index.ts --compile --outfile dist/hoist --target=bun-darwin-arm64",
+    "build:all": "bun run scripts/build-all.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.10.0",
+    "commander": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.8.3",
+    "which": "^5.0.0",
+    "@types/which": "^3.0.4"
+  }
+}

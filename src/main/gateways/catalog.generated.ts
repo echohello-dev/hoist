@@ -1,0 +1,237 @@
+/**
+ * GENERATED FILE — DO NOT EDIT BY HAND.
+ *
+ * To add or modify entries, edit:
+ *   src/main/gateways/catalog.source.json
+ * and run `npm run gen:catalog`.
+ */
+
+import type { GatewayEntry } from './types'
+
+export const GATEWAY_CATALOG: readonly GatewayEntry[] =
+[
+    {
+      "id": "truefoundry",
+      "label": "TrueFoundry AI Gateway",
+      "baseUrl": "https://gateway.truefoundry.ai",
+      "selfHostedHint": "Or your org URL, e.g. https://<your-org>.truefoundry.cloud/api/llm",
+      "docUrl": "https://www.truefoundry.com/docs/ai-gateway/quick-start",
+      "endpoints": {
+        "openai": "/",
+        "anthropic": "/proxy/v1/messages"
+      },
+      "auth": {
+        "header": "Authorization",
+        "scheme": "Bearer",
+        "envVar": "TFY_API_KEY"
+      },
+      "modelIdFormat": "<provider-account>/<model>",
+      "nativeProviders": [
+        "anthropic",
+        "openai",
+        "bedrock",
+        "vertex",
+        "azure-foundry"
+      ],
+      "notes": "Gateway exposes native Anthropic /v1/messages passthrough; CLAUDE_CODE compat."
+    },
+    {
+      "id": "litellm",
+      "label": "LiteLLM Proxy",
+      "baseUrl": "http://localhost:4000",
+      "selfHostedHint": "Default port 4000. Self-host: docker run ghcr.io/berriai/litellm-main",
+      "docUrl": "https://docs.litellm.ai/docs/proxy/quick_start",
+      "endpoints": {
+        "openai": "/v1/chat/completions",
+        "anthropic": "/v1/messages"
+      },
+      "auth": {
+        "header": "Authorization",
+        "scheme": "Bearer",
+        "envVar": "LITELLM_API_KEY"
+      },
+      "modelIdFormat": "<provider-route>/<model-name> (e.g. anthropic/claude-3-5-sonnet-20240620)",
+      "nativeProviders": [
+        "anthropic",
+        "openai",
+        "azure",
+        "vertex",
+        "bedrock"
+      ],
+      "notes": "Both /v1/messages (Anthropic) and /v1/chat/completions (OpenAI) are first-class."
+    },
+    {
+      "id": "cloudflare-ai-gateway",
+      "label": "Cloudflare AI Gateway",
+      "baseUrl": "https://gateway.ai.cloudflare.com/v1/<account_id>",
+      "selfHostedHint": "Path includes your account_id; final segment is optional path.",
+      "docUrl": "https://developers.cloudflare.com/ai-gateway/",
+      "endpoints": {
+        "openai": "/",
+        "anthropic": "/"
+      },
+      "auth": {
+        "header": "Authorization",
+        "scheme": "Bearer",
+        "envVar": "CF_API_TOKEN"
+      },
+      "modelIdFormat": "<provider>/<model> (e.g. openai/gpt-4o, anthropic/claude-sonnet-4)",
+      "nativeProviders": [
+        "openai",
+        "anthropic",
+        "workers-ai"
+      ],
+      "notes": "Single endpoint for OpenAI, Anthropic, Workers AI. Unique account_id per gateway."
+    },
+    {
+      "id": "vercel-ai-gateway",
+      "label": "Vercel AI Gateway",
+      "baseUrl": "https://api.vercel.com/v1/ai",
+      "selfHostedHint": "",
+      "docUrl": "https://vercel.com/docs/ai-gateway",
+      "endpoints": {
+        "openai": "/v1/chat/completions"
+      },
+      "auth": {
+        "header": "Authorization",
+        "scheme": "Bearer",
+        "envVar": "VERCEL_API_KEY"
+      },
+      "modelIdFormat": "<provider>/<model> (e.g. openai/gpt-4o)",
+      "nativeProviders": [
+        "openai",
+        "anthropic",
+        "google"
+      ],
+      "notes": "Use OIDC token from Vercel login or a manual API key."
+    },
+    {
+      "id": "openrouter",
+      "label": "OpenRouter",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "selfHostedHint": "",
+      "docUrl": "https://openrouter.ai/docs",
+      "endpoints": {
+        "openai": "/"
+      },
+      "auth": {
+        "header": "Authorization",
+        "scheme": "Bearer",
+        "envVar": "OPENROUTER_API_KEY"
+      },
+      "modelIdFormat": "<provider>/<model> (e.g. anthropic/claude-3.5-sonnet)",
+      "nativeProviders": [
+        "openai",
+        "anthropic",
+        "google",
+        "meta",
+        "mistral"
+      ],
+      "notes": "Single API for 100+ models. Budget headers in probe."
+    },
+    {
+      "id": "together",
+      "label": "Together AI",
+      "baseUrl": "https://api.together.xyz/v1",
+      "selfHostedHint": "",
+      "docUrl": "https://docs.together.ai/docs/openai-api-compatibility",
+      "endpoints": {
+        "openai": "/"
+      },
+      "auth": {
+        "header": "Authorization",
+        "scheme": "Bearer",
+        "envVar": "TOGETHER_API_KEY"
+      },
+      "modelIdFormat": "<org>/<model> (e.g. meta-llama/Llama-3.1-70B-Instruct)",
+      "nativeProviders": [
+        "openai-compat"
+      ],
+      "notes": "Direct OpenAI-compatible inference, not a unifying gateway. Use as provider catalog."
+    },
+    {
+      "id": "opencode-zen",
+      "label": "OpenCode Zen",
+      "baseUrl": "https://opencode.ai/zen/v1",
+      "selfHostedHint": "",
+      "docUrl": "https://opencode.ai/docs/providers",
+      "endpoints": {
+        "openai": "/",
+        "anthropic": "/"
+      },
+      "auth": {
+        "header": "Authorization",
+        "scheme": "Bearer",
+        "envVar": "OPENCODE_ZEN_API_KEY"
+      },
+      "modelIdFormat": "<model-id>",
+      "nativeProviders": [
+        "anthropic",
+        "openai",
+        "google"
+      ],
+      "notes": "Curated catalog from OpenCode. Recommended for OpenCode users."
+    },
+    {
+      "id": "zenlayer",
+      "label": "ZenLayer AI Gateway",
+      "baseUrl": "https://gateway.theturbo.ai",
+      "selfHostedHint": "",
+      "docUrl": "https://docs.console.zenlayer.com/welcome/ai-gateway",
+      "endpoints": {
+        "openai": "/"
+      },
+      "auth": {
+        "header": "Authorization",
+        "scheme": "Bearer",
+        "envVar": "ZENLAYER_API_KEY"
+      },
+      "modelIdFormat": "Model IDs from Zenlayer catalog",
+      "nativeProviders": [
+        "openai",
+        "anthropic",
+        "google"
+      ],
+      "notes": "Enterprise AI gateway from ZenLayer."
+    },
+    {
+      "id": "claude-code-compatible",
+      "label": "Claude Code-compatible (custom)",
+      "baseUrl": "",
+      "selfHostedHint": "Any endpoint that speaks the Anthropic /v1/messages protocol.",
+      "docUrl": "https://docs.anthropic.com/en/api/messages",
+      "endpoints": {
+        "anthropic": "/v1/messages"
+      },
+      "auth": {
+        "header": "x-api-key",
+        "scheme": "raw",
+        "envVar": "ANTHROPIC_API_KEY"
+      },
+      "modelIdFormat": "<model-name>",
+      "nativeProviders": [
+        "anthropic"
+      ],
+      "notes": "Use for kimi.com, acme.com etc. that expose Anthropic API directly."
+    },
+    {
+      "id": "custom-openai",
+      "label": "Custom OpenAI-compatible endpoint",
+      "baseUrl": "",
+      "selfHostedHint": "Anything speaking /v1/chat/completions: Ollama, LM Studio, internal gateway.",
+      "docUrl": "",
+      "endpoints": {
+        "openai": "/v1"
+      },
+      "auth": {
+        "header": "Authorization",
+        "scheme": "Bearer",
+        "envVar": "PROVIDER_API_KEY"
+      },
+      "modelIdFormat": "<model>",
+      "nativeProviders": [
+        "openai-compat"
+      ],
+      "notes": "Set base URL on the gateway form."
+    }
+  ] as const

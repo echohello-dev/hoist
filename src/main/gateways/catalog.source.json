@@ -1,6 +1,24 @@
 {
   "gateways": [
     {
+      "id": "corporate",
+      "label": "Corporate AI gateway",
+      "baseUrl": "https://gateway.<your-org>.com",
+      "selfHostedHint": "Replace <your-org> with your hostname. Often exposed at /v1/chat/completions (OpenAI) and /v1/messages (Anthropic).",
+      "endpoints": {
+        "openai": "/v1",
+        "anthropic": "/v1/messages"
+      },
+      "auth": {
+        "header": "Authorization",
+        "scheme": "Bearer",
+        "envVar": "GATEWAY_API_KEY"
+      },
+      "modelIdFormat": "<model>",
+      "nativeProviders": ["anthropic", "openai"],
+      "notes": "Generic placeholder for any OpenAI-/Anthropic-compatible gateway. Set base URL when applying."
+    },
+    {
       "id": "truefoundry",
       "label": "TrueFoundry AI Gateway",
       "baseUrl": "https://gateway.truefoundry.ai",

@@ -4,6 +4,8 @@
  * To add or modify entries, edit:
  *   src/main/gateways/catalog.source.json
  * and run `npm run gen:catalog`.
+ *
+ * fingerprint: ce1c1cb45bbe308d  (entries: 11)
  */
 
 import type { GatewayEntry } from './types'

@@ -4,6 +4,8 @@
  * To add or modify entries, edit:
  *   src/main/providers/catalog.source.json
  * and run `npm run gen:catalog`.
+ *
+ * fingerprint: 3d35ef2c7f6a58e0  (entries: 18)
  */
 
 import type { ProviderEntry } from './types'

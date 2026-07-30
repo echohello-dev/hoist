@@ -19,6 +19,7 @@
     "gen:catalog": "node scripts/gen-catalog.mjs",
     "prebuild": "npm run gen:catalog",
     "prebuild:renderer": "npm run gen:catalog",
+    "test:extractor": "node scripts/test-extract-base-url.mjs",
     "package": "npm run build && electron-builder"
   },
   "dependencies": {

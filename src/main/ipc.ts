@@ -232,6 +232,17 @@ export function registerIpcHandlers(): void {
       return { ok: false as const, error: errMsg(err) }
     }
   })
+
+  ipcMain.handle(CHANNELS.clipboardRead, () => {
+    try {
+      const text = clipboard.readText().trim()
+      // Truncate to keep IPC payloads bounded — suggestion is short anyway.
+      const truncated = text.length > 4096 ? text.slice(0, 4096) : text
+      return { ok: true as const, text: truncated }
+    } catch (err) {
+      return { ok: false as const, error: errMsg(err) }
+    }
+  })
 }
 
 function errMsg(err: unknown): string {

@@ -374,10 +374,29 @@ function GatewayStep({ onBack, onNext }: { onBack: () => void; onNext: () => voi
   }[]>([])
   const [error, setError] = useState<string | null>(null)
   const [effectiveBaseUrl, setEffectiveBaseUrl] = useState<string | null>(null)
+  const [clipboardSuggestion, setClipboardSuggestion] = useState<string | null>(null)
 
   useEffect(() => {
     refreshAll()
+    void loadClipboardSuggestion()
   }, [])
+
+  /**
+   * If the clipboard currently holds a URL that looks like a gateway base URL,
+   * surface it as a one-click suggestion. We never read the clipboard
+   * passively in main; this single call is gated behind the user landing
+   * on the Gateway step.
+   */
+  async function loadClipboardSuggestion() {
+    try {
+      const res = await window.hoist.clipboard.read()
+      if (!res.ok || !res.text) return
+      const url = extractBaseUrl(res.text)
+      if (url && url !== baseUrl) setClipboardSuggestion(url)
+    } catch {
+      // best-effort; suggestion is optional
+    }
+  }
 
   async function refreshAll() {
     const [g, p, h, d] = await Promise.all([
@@ -524,8 +543,35 @@ function GatewayStep({ onBack, onNext }: { onBack: () => void; onNext: () => voi
             style={{ ...styles.input, width: '100%' }}
             value={baseUrl}
             placeholder="https://gateway.example.com"
-            onChange={(e) => setBaseUrl(e.target.value)}
+            onChange={(e) => {
+              setBaseUrl(e.target.value)
+              // Discard suggestion once the user edits anything.
+              if (clipboardSuggestion) setClipboardSuggestion(null)
+            }}
           />
+          {clipboardSuggestion && (
+            <div style={styles.clipboardSuggestion}>
+              <span style={styles.envHint}>
+                Clipboard has <code style={styles.code}>{clipboardSuggestion}</code>
+              </span>
+              <button
+                style={styles.miniBtn}
+                onClick={() => {
+                  setBaseUrl(clipboardSuggestion)
+                  setClipboardSuggestion(null)
+                }}
+              >
+                Use this URL
+              </button>
+              <button
+                style={styles.miniBtn}
+                onClick={() => setClipboardSuggestion(null)}
+                title="Dismiss"
+              >
+                ✕
+              </button>
+            </div>
+          )}
           {selectedGateway?.selfHostedHint && (
             <div style={styles.envHint}>{selectedGateway.selfHostedHint}</div>
           )}
@@ -641,6 +687,20 @@ function secretIdFor(providerId: string): string {
 
 function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
+}
+
+/**
+ * Pull the first https? URL out of arbitrary clipboard text. Returns null
+ * if nothing on the clipboard looks like a base URL we can route to.
+ *
+ * Restriction: no whitespace or newlines inside the URL — the clipboard
+ * may carry arbitrary text and we don't want partial paths leaking in.
+ */
+export function extractBaseUrl(text: string): string | null {
+  const trimmed = text.trim()
+  const m = trimmed.match(/^https?:\/\/[^\s/?#]+/i)
+  if (!m) return null
+  return m[0].replace(/\/+$/, '')
 }
 
 const styles: Record<string, React.CSSProperties> = {
@@ -1009,5 +1069,16 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 11,
     fontFamily: 'ui-monospace, SFMono-Regular, monospace',
     overflow: 'auto',
+  },
+  clipboardSuggestion: {
+    marginTop: 8,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    background: 'var(--accent-glow)',
+    border: '1px solid rgba(124, 92, 252, 0.25)',
+    borderRadius: 8,
+    padding: '8px 10px',
+    flexWrap: 'wrap' as const,
   },
 }

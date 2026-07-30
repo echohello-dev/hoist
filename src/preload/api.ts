@@ -24,6 +24,18 @@ export interface HoistAPI {
   probe: {
     run: (req: ProbeRequest) => Promise<ProbeResponse>
   }
+  clipboard: {
+    /** Read the current clipboard text. Renderer is the only caller;
+     *  the main process never invokes this opportunistically. */
+    read: () => Promise<ClipboardReadResponse>
+  }
+}
+
+export interface ClipboardReadResponse {
+  ok: boolean
+  error?: string
+  /** Trimmed text if `ok`. Truncated to 4096 chars to keep IPC payloads bounded. */
+  text?: string
 }
 
 export interface VaultListResponse {

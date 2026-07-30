@@ -26,6 +26,9 @@ const api: HoistAPI = {
   probe: {
     run: (req) => ipcRenderer.invoke(CHANNELS.probeRun, req),
   },
+  clipboard: {
+    read: () => ipcRenderer.invoke(CHANNELS.clipboardRead),
+  },
 }
 
 contextBridge.exposeInMainWorld('hoist', api)

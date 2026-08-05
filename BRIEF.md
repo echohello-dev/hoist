@@ -61,24 +61,27 @@ Linux (`.AppImage`).
 
 ## Scope (v1)
 
-- [ ] Rename weldable → hoist (Phase 0).
-- [ ] Electron shell with sidebar: Harnesses / Keys / SSO / Gateway / Done.
-- [ ] Secret vault: safeStorage default + keytar + chained backends (ADR-0001).
-- [ ] Provider catalog (~150, generated) + custom OpenAI-compatible (ADR-0002).
-- [ ] Key validity + budget + OAuth expiry + review dates (ADR-0003).
-- [ ] Handy actions: copy/auto-clear, write `.envrc`, write tool configs.
-- [ ] Install Claude Code / OpenCode via npm.
+- [x] Rename weldable → hoist (Phase 0).
+- [x] Electron shell with sidebar: Harnesses / Keys / Gateway / Done.
+- [x] Secret vault: safeStorage default (ADR-0001).
+- [x] Provider catalog (18 entries, JSON source + generator) + custom OpenAI-compatible (ADR-0002).
+- [x] Key validity + budget via provider probe (Anthropic first; Bedrock / Vertex / Azure next) (ADR-0003).
+- [x] Handy actions: copy with 30 s clipboard auto-clear.
+- [x] Install Claude Code / OpenCode / Codex via npm.
+- [x] Gateway catalog (11 gateways: TrueFoundry, LiteLLM, Cloudflare, Vercel, OpenRouter, Together, OpenCode Zen, ZenLayer, plus Corporate + custom slots).
+- [x] Gateway picker UI + per-harness wiring (Claude Code `~/.claude/settings.json` env, Codex `~/.codex/config.toml` model_provider block, OpenCode `~/.config/opencode/opencode.json` provider block).
+- [x] Clipboard URL suggestion in the Gateway step.
+- [x] CLI companion (`hoist install / keys / gateway use / harness config / list`) with single-file cross-platform binaries via `bun build --compile`.
+- [x] release-please CalVer (`YYYY.MM.PATCH`) + multi-platform GitHub Actions release workflow.
 - [ ] SSO login flow (one provider first, likely Okta).
-- [ ] Gateway endpoint configuration UI.
-- [ ] Local proxy for OAuth token exchange.
-- [ ] Bundled bw/op/sops/age binaries (ADR-0004).
-- [ ] Auto-discovery + version display of installed tools.
+- [ ] Local OAuth proxy for SSO token exchange.
+- [ ] Bundled bw/op/sops/age binaries (ADR-0004) for the keychain/password-manager backends.
+- [ ] OAuth token expiry surface (Claude Code + Codex auth files).
 
 ## Out of Scope
 
 - The coding workbench itself (that's OpenPi).
 - Building/managing AI gateways (configure against existing ones).
-- CLI-first workflows (this is a GUI tool).
 
 ## Name
 

@@ -1,4 +1,20 @@
 import { useEffect, useState } from 'react'
+import {
+  Zap,
+  Search,
+  KeyRound,
+  Globe,
+  ShieldCheck,
+  ChevronDown,
+  Check,
+  X,
+  RotateCw,
+  Download,
+  Pencil,
+  Terminal,
+  SquareTerminal,
+  Circle,
+} from 'lucide-react'
 import type { HoistAPI } from '../preload/api'
 
 declare global {
@@ -13,7 +29,7 @@ type ScopeId = 'all' | 'anthropic' | 'openai'
 interface SidebarSection {
   id: string
   label: string
-  icon: string
+  icon: React.ReactNode
   count?: number
   active?: boolean
 }
@@ -65,13 +81,13 @@ function TopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
   return (
     <header className="hoist-topbar">
       <div className="hoist-topbar-left">
-        <span className="hoist-mark">⚡</span>
+        <Zap className="hoist-mark" size={16} strokeWidth={2.25} />
         <span className="hoist-brand">hoist</span>
         <span className="hoist-section-divider" />
         <span className="hoist-section-label">Harnesses</span>
       </div>
       <button className="hoist-palette-trigger" onClick={onOpenPalette}>
-        <span className="hoist-palette-icon">🔍</span>
+        <Search className="hoist-palette-icon" size={14} />
         <span>Search providers, gateways, harnesses</span>
         <span className="kbd">⌘</span>
         <span className="kbd">K</span>
@@ -95,15 +111,15 @@ function Sidebar({
     {
       label: 'Vault',
       items: [
-        { id: 'harnesses', label: 'Harnesses', icon: '⚡', count: statusCounts.harnesses, active: surface === 'harnesses' },
-        { id: 'keys', label: 'Provider keys', icon: '🔑', count: statusCounts.keys, active: surface === 'keys' },
-        { id: 'gateway', label: 'Gateway', icon: '🌐', count: statusCounts.gateway, active: surface === 'gateway' },
+        { id: 'harnesses', label: 'Harnesses', icon: <Zap size={14} strokeWidth={2.25} />, count: statusCounts.harnesses, active: surface === 'harnesses' },
+        { id: 'keys', label: 'Provider keys', icon: <KeyRound size={14} strokeWidth={2.25} />, count: statusCounts.keys, active: surface === 'keys' },
+        { id: 'gateway', label: 'Gateway', icon: <Globe size={14} strokeWidth={2.25} />, count: statusCounts.gateway, active: surface === 'gateway' },
       ],
     },
     {
       label: 'Health',
       items: [
-        { id: 'status', label: 'Watchtower', icon: '🛡', count: statusCounts.status, active: surface === 'status' },
+        { id: 'status', label: 'Watchtower', icon: <ShieldCheck size={14} strokeWidth={2.25} />, count: statusCounts.status, active: surface === 'status' },
       ],
     },
   ]
@@ -115,7 +131,7 @@ function Sidebar({
           <div className="hoist-account-name">hoist</div>
           <div className="hoist-account-sub">Personal vault</div>
         </div>
-        <span className="hoist-account-caret">▾</span>
+        <ChevronDown className="hoist-account-caret" size={14} />
       </button>
       <div className="hoist-sidebar-section">
         {groups.map((g) => (
@@ -163,7 +179,7 @@ function HarnessesSurface() {
           {harnesses.map((h, i) => (
             <button key={h.id} className={`hoist-list-row${i === 0 ? ' is-selected' : ''}`}>
               <span className="hoist-list-row-icon">
-                {h.id === 'claude-code' ? '⚡' : h.id === 'opencode' ? '◍' : '◎'}
+                {h.id === 'claude-code' ? <Zap size={16} strokeWidth={2.25} /> : h.id === 'opencode' ? <Terminal size={16} strokeWidth={2.25} /> : <SquareTerminal size={16} strokeWidth={2.25} />}
               </span>
               <div className="hoist-list-row-body">
                 <div className="hoist-list-row-title">{h.name}</div>
@@ -241,14 +257,14 @@ function KeysSurface() {
   )
 }
 
-function providerGlyph(id: string): string {
+function providerGlyph(id: string): React.ReactNode {
   switch (id) {
-    case 'anthropic': return 'A'
-    case 'openai':    return '◉'
-    case 'vertex':    return 'V'
-    case 'bedrock':   return 'B'
-    case 'groq':      return 'G'
-    default:          return '·'
+    case 'anthropic': return <span style={{fontWeight:600, fontSize: 13}}>A</span>
+    case 'openai':    return <Circle size={14} />
+    case 'vertex':    return <span style={{fontWeight:600, fontSize: 13}}>V</span>
+    case 'bedrock':   return <span style={{fontWeight:600, fontSize: 13}}>B</span>
+    case 'groq':      return <span style={{fontWeight:600, fontSize: 13}}>G</span>
+    default:          return <Circle size={14} />
   }
 }
 
@@ -261,7 +277,7 @@ function ScopePicker({ value, onChange }: { value: ScopeId; onChange: (v: ScopeI
   return (
     <div className="hoist-scope-picker">
       <button className="hoist-scope-trigger">
-        <span className="hoist-scope-icon">▾</span>
+        <ChevronDown className="hoist-scope-icon" size={12} />
         <span>{opts.find((o) => o.id === value)?.label}</span>
       </button>
       <div className="hoist-scope-menu">
@@ -271,7 +287,7 @@ function ScopePicker({ value, onChange }: { value: ScopeId; onChange: (v: ScopeI
             className={`hoist-scope-item${o.id === value ? ' is-active' : ''}`}
             onClick={() => onChange(o.id)}
           >
-            {o.id === value && <span className="hoist-scope-check">✓</span>}
+            {o.id === value && <Check className="hoist-scope-check" size={12} strokeWidth={2.5} />}
             <span>{o.label}</span>
           </button>
         ))}
@@ -283,7 +299,7 @@ function ScopePicker({ value, onChange }: { value: ScopeId; onChange: (v: ScopeI
 function NewItemCatalogue({ onClose }: { onClose: () => void }) {
   const tiles = [
     { id: 'anthropic',    title: 'Anthropic API key',     desc: 'sk-ant-…',          icon: 'A', accent: true },
-    { id: 'openai',       title: 'OpenAI API key',        desc: 'sk-…',              icon: '◉' },
+    { id: 'openai',       title: 'OpenAI API key',        desc: 'sk-…',              icon: <Circle size={18} strokeWidth={2.25} /> },
     { id: 'azure',        title: 'Azure OpenAI',          desc: 'endpoint + deployment + key', icon: 'Az' },
     { id: 'vertex',       title: 'Google Vertex AI',      desc: 'project + region + ADC',     icon: 'V' },
     { id: 'bedrock',      title: 'AWS Bedrock',           desc: 'profile + region',           icon: 'B' },
@@ -294,7 +310,7 @@ function NewItemCatalogue({ onClose }: { onClose: () => void }) {
       <div className="hoist-modal hoist-modal-lg" onClick={(e) => e.stopPropagation()}>
         <div className="hoist-modal-header">
           <h3>What would you like to add?</h3>
-          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}><X size={14} /></button>
         </div>
         <div className="hoist-modal-body">
           <input className="input input-lg" placeholder="Search by provider…" />
@@ -360,7 +376,7 @@ function GatewaySurface() {
               onClick={() => setSelected(g.id)}
               className={`hoist-list-row${selected === g.id ? ' is-selected' : ''}`}
             >
-              <span className="hoist-list-row-icon">🌐</span>
+              <span className="hoist-list-row-icon"><Globe size={16} strokeWidth={2.25} /></span>
               <div className="hoist-list-row-body">
                 <div className="hoist-list-row-title">
                   {g.label}
@@ -372,7 +388,7 @@ function GatewaySurface() {
                 </div>
               </div>
               <div className="hoist-list-row-meta">
-                {selected === g.id && <span className="hoist-list-row-check">✓</span>}
+                {selected === g.id && <Check className="hoist-list-row-check" size={12} strokeWidth={3} />}
               </div>
             </button>
           ))}
@@ -431,9 +447,9 @@ function DetailRail({ surface }: { surface: SurfaceId }) {
           </div>
           <div className="hoist-rail-section">
             <div className="hoist-rail-section-label">Actions</div>
-            <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'flex-start' }}>↻ Re-detect</button>
-            <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'flex-start' }}>⤓ Update</button>
-            <button className="btn btn-ghost btn-sm btn-danger" style={{ width: '100%', justifyContent: 'flex-start' }}>✕ Uninstall</button>
+            <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'flex-start' }}><RotateCw size={14} /> Re-detect</button>
+            <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'flex-start' }}><Download size={14} /> Update</button>
+            <button className="btn btn-ghost btn-sm btn-danger" style={{ width: '100%', justifyContent: 'flex-start' }}><X size={14} /> Uninstall</button>
           </div>
         </>
       )}
@@ -448,10 +464,10 @@ function DetailRail({ surface }: { surface: SurfaceId }) {
           </div>
           <div className="hoist-rail-section">
             <div className="hoist-rail-section-label">Actions</div>
-            <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'flex-start' }}>↻ Probe now</button>
+            <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'flex-start' }}><RotateCw size={14} /> Probe now</button>
             <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'flex-start' }}>⎘ Copy (auto-clears 30s)</button>
-            <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'flex-start' }}>✎ Edit</button>
-            <button className="btn btn-ghost btn-sm btn-danger" style={{ width: '100%', justifyContent: 'flex-start' }}>✕ Delete</button>
+            <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'flex-start' }}><Pencil size={14} /> Edit</button>
+            <button className="btn btn-ghost btn-sm btn-danger" style={{ width: '100%', justifyContent: 'flex-start' }}><X size={14} /> Delete</button>
           </div>
         </>
       )}
@@ -544,7 +560,7 @@ function CommandPalette({ onClose, onSelect }: { onClose: () => void; onSelect: 
     <div className="hoist-modal-backdrop" onClick={onClose}>
       <div className="hoist-palette" onClick={(e) => e.stopPropagation()}>
         <div className="hoist-palette-input-row">
-          <span className="hoist-palette-icon">🔍</span>
+        <Search className="hoist-palette-icon" size={14} />
           <input
             autoFocus
             className="hoist-palette-input"

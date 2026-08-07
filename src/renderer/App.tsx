@@ -1,4 +1,20 @@
 import { useEffect, useState } from 'react'
+import {
+  Zap,
+  Search,
+  KeyRound,
+  Globe,
+  ShieldCheck,
+  ChevronDown,
+  Check,
+  X,
+  RotateCw,
+  Download,
+  Pencil,
+  Terminal,
+  SquareTerminal,
+  Circle,
+} from 'lucide-react'
 import type { HoistAPI } from '../preload/api'
 
 declare global {
@@ -7,1078 +23,574 @@ declare global {
   }
 }
 
-type Step = 'tools' | 'keys' | 'gateway' | 'done'
+type SurfaceId = 'harnesses' | 'keys' | 'gateway' | 'status'
+type ScopeId = 'all' | 'anthropic' | 'openai'
 
-interface HarnessState {
-  installingId: string | null
-  status: Record<string, { version: string | null; path: string | null; installed: boolean }>
-  error: string | null
+interface SidebarSection {
+  id: string
+  label: string
+  icon: React.ReactNode
+  count?: number
+  active?: boolean
 }
 
-interface VaultState {
-  entries: { id: string; label?: string; preview?: string; updatedAt?: string }[]
-  savingId: string | null
-  lastProbe: Record<string, { ok: boolean; detail?: string; status: string; checkedAt: string }>
+interface SidebarGroup {
+  label: string
+  items: SidebarSection[]
 }
 
 export function App() {
-  const [step, setStep] = useState<Step>('tools')
+  const [surface, setSurface] = useState<SurfaceId>('harnesses')
+  const [paletteOpen, setPaletteOpen] = useState(false)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setPaletteOpen(true)
+      }
+      if (e.key === 'Escape') setPaletteOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   return (
-    <div style={styles.shell}>
-      <Sidebar step={step} onNavigate={setStep} />
-      <main style={styles.main}>
-        {step === 'tools' && <ToolsStep onNext={() => setStep('keys')} />}
-        {step === 'keys' && <KeysStep onBack={() => setStep('tools')} onNext={() => setStep('gateway')} />}
-        {step === 'gateway' && <GatewayStep onBack={() => setStep('keys')} onNext={() => setStep('done')} />}
-        {step === 'done' && <DoneStep />}
-      </main>
+    <div className="hoist">
+      <TopBar onOpenPalette={() => setPaletteOpen(true)} />
+      <div className="hoist-body">
+        <Sidebar
+          surface={surface}
+          onSurface={setSurface}
+          statusCounts={{ harnesses: 3, keys: 4, gateway: 1, status: 2 }}
+        />
+        <main className="hoist-main">
+          {surface === 'harnesses' && <HarnessesSurface />}
+          {surface === 'keys' && <KeysSurface />}
+          {surface === 'gateway' && <GatewaySurface />}
+          {surface === 'status' && <StatusSurface />}
+        </main>
+        <DetailRail surface={surface} />
+      </div>
+      {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onSelect={(id) => { setSurface(id); setPaletteOpen(false) }} />}
     </div>
   )
 }
 
-function Sidebar({ step, onNavigate }: { step: Step; onNavigate: (s: Step) => void }) {
-  const steps: { id: Step; label: string }[] = [
-    { id: 'tools', label: 'Harnesses' },
-    { id: 'keys', label: 'Keys' },
-    { id: 'gateway', label: 'Gateway' },
-    { id: 'done', label: 'Done' },
-  ]
-  const stepIndex = steps.findIndex((s) => s.id === step)
-
+function TopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
   return (
-    <aside style={styles.sidebar}>
-      <div style={styles.logo}>
-        <span style={styles.logoIcon}>&#x26A1;</span>
-        hoist
+    <header className="hoist-topbar">
+      <div className="hoist-topbar-left">
+        <Zap className="hoist-mark" size={16} strokeWidth={2.25} />
+        <span className="hoist-brand">hoist</span>
+        <span className="hoist-section-divider" />
+        <span className="hoist-section-label">Harnesses</span>
       </div>
-      <nav style={styles.nav}>
-        {steps.map((s, i) => (
-          <button
-            key={s.id}
-            onClick={() => onNavigate(s.id)}
-            style={{
-              ...styles.navItem,
-              ...(i <= stepIndex ? styles.navItemActive : {}),
-              ...(i === stepIndex ? styles.navItemCurrent : {}),
-            }}
-          >
-            <span style={styles.stepDot}>{i <= stepIndex ? '●' : '○'}</span>
-            {s.label}
-          </button>
+      <button className="hoist-palette-trigger" onClick={onOpenPalette}>
+        <Search className="hoist-palette-icon" size={14} />
+        <span>Search providers, gateways, harnesses</span>
+        <span className="kbd">⌘</span>
+        <span className="kbd">K</span>
+      </button>
+      <div className="hoist-topbar-right">
+        <button className="btn btn-ghost btn-sm">Help</button>
+        <button className="btn btn-primary btn-sm btn-pill">+ Add key</button>
+      </div>
+    </header>
+  )
+}
+
+function Sidebar({
+  surface, onSurface, statusCounts,
+}: {
+  surface: SurfaceId
+  onSurface: (s: SurfaceId) => void
+  statusCounts: Record<SurfaceId, number>
+}) {
+  const groups: SidebarGroup[] = [
+    {
+      label: 'Vault',
+      items: [
+        { id: 'harnesses', label: 'Harnesses', icon: <Zap size={14} strokeWidth={2.25} />, count: statusCounts.harnesses, active: surface === 'harnesses' },
+        { id: 'keys', label: 'Provider keys', icon: <KeyRound size={14} strokeWidth={2.25} />, count: statusCounts.keys, active: surface === 'keys' },
+        { id: 'gateway', label: 'Gateway', icon: <Globe size={14} strokeWidth={2.25} />, count: statusCounts.gateway, active: surface === 'gateway' },
+      ],
+    },
+    {
+      label: 'Health',
+      items: [
+        { id: 'status', label: 'Watchtower', icon: <ShieldCheck size={14} strokeWidth={2.25} />, count: statusCounts.status, active: surface === 'status' },
+      ],
+    },
+  ]
+  return (
+    <aside className="hoist-sidebar">
+      <button className="hoist-sidebar-account">
+        <div className="hoist-account-mark">H</div>
+        <div className="hoist-account-meta">
+          <div className="hoist-account-name">hoist</div>
+          <div className="hoist-account-sub">Personal vault</div>
+        </div>
+        <ChevronDown className="hoist-account-caret" size={14} />
+      </button>
+      <div className="hoist-sidebar-section">
+        {groups.map((g) => (
+          <div key={g.label} className="hoist-sidebar-group">
+            <div className="hoist-sidebar-group-label">{g.label}</div>
+            {g.items.map((it) => (
+              <button
+                key={it.id}
+                onClick={() => onSurface(it.id as SurfaceId)}
+                className={`hoist-sidebar-item${it.active ? ' is-active' : ''}`}
+              >
+                <span className="hoist-sidebar-item-icon">{it.icon}</span>
+                <span className="hoist-sidebar-item-label">{it.label}</span>
+                {typeof it.count === 'number' && <span className="hoist-sidebar-item-count">{it.count}</span>}
+              </button>
+            ))}
+          </div>
         ))}
-      </nav>
-      <div style={styles.sidebarFooter}>
-        <span style={styles.version}>v0.0.1-preview</span>
+      </div>
+      <div className="hoist-sidebar-footer">
+        <div className="hoist-status-pill"><span className="hoist-dot-ok" /> Vault unlocked</div>
+        <div className="hoist-version">v0.0.1-preview</div>
       </div>
     </aside>
   )
 }
 
-function ToolsStep({ onNext }: { onNext: () => void }) {
-  const [harnesses, setHarnesses] = useState<{ id: string; name: string; description: string }[]>([])
-  const [state, setState] = useState<HarnessState>({ installingId: null, status: {}, error: null })
+/* ───── Harnesses surface ────────────────────────────────────────── */
 
-  useEffect(() => {
-    window.hoist.harness.list().then(setHarnesses)
-    refreshStatus()
-  }, [])
-
-  async function refreshStatus() {
-    const discovered = await window.hoist.harness.discover()
-    setState((s) => ({
-      ...s,
-      status: Object.fromEntries(
-        Object.entries(discovered).map(([id, tool]) => [
-          id,
-          { version: tool.version, path: tool.path, installed: !!tool.path },
-        ]),
-      ),
-    }))
-  }
-
-  async function install(id: string) {
-    setState((s) => ({ ...s, installingId: id, error: null }))
-    try {
-      const result = await window.hoist.harness.install(id)
-      if (!result.ok) {
-        setState((s) => ({ ...s, error: result.error ?? 'Install failed' }))
-      } else if (result.tool) {
-        setState((s) => ({
-          ...s,
-          status: {
-            ...s.status,
-            [id]: {
-              version: result.tool!.version,
-              path: result.tool!.path,
-              installed: !!result.tool!.path,
-            },
-          },
-        }))
-      }
-    } catch (err) {
-      setState((s) => ({ ...s, error: errMsg(err) }))
-    } finally {
-      setState((s) => ({ ...s, installingId: null }))
-    }
-  }
-
+function HarnessesSurface() {
+  const harnesses = [
+    { id: 'claude-code', name: 'Claude Code', desc: "Anthropic's official agentic coding CLI.", version: '2.1.211', exec: '/usr/local/bin/claude' },
+    { id: 'opencode',    name: 'OpenCode',    desc: 'Open-source AI coding agent with a TUI.', version: '1.18.3', exec: '/usr/local/bin/opencode' },
+    { id: 'codex',       name: 'Codex',       desc: "OpenAI's terminal coding agent.",         version: '—',     exec: null },
+  ]
   return (
-    <div style={styles.step}>
-      <h2 style={styles.heading}>Agent harnesses</h2>
-      <p style={styles.subtitle}>Install the AI coding tools you use. Hoist runs <code style={styles.code}>npm i -g</code> on your behalf.</p>
-
-      <div style={styles.cardList}>
-        {harnesses.map((tool) => {
-          const status = state.status[tool.id]
-          const installing = state.installingId === tool.id
-          return (
-            <div key={tool.id} style={styles.card}>
-              <div>
-                <div style={styles.cardTitle}>{tool.name}</div>
-                <div style={styles.cardStatus}>
-                  {installing
-                    ? 'Installing…'
-                    : status?.installed
-                      ? `Installed${status.version ? ` · ${status.version}` : ''}`
-                      : 'Not installed'}
-                </div>
+    <section className="hoist-pane">
+      <PaneHeader
+        title="Harnesses"
+        subtitle="Detect and install the agent harnesses your team uses."
+        primaryAction={<button className="btn btn-primary btn-pill">+ Install</button>}
+      />
+      <div className="hoist-pane-body">
+        <div className="hoist-list">
+          {harnesses.map((h, i) => (
+            <button key={h.id} className={`hoist-list-row${i === 0 ? ' is-selected' : ''}`}>
+              <span className="hoist-list-row-icon">
+                {h.id === 'claude-code' ? <Zap size={16} strokeWidth={2.25} /> : h.id === 'opencode' ? <Terminal size={16} strokeWidth={2.25} /> : <SquareTerminal size={16} strokeWidth={2.25} />}
+              </span>
+              <div className="hoist-list-row-body">
+                <div className="hoist-list-row-title">{h.name}</div>
+                <div className="hoist-list-row-sub muted">{h.desc}</div>
               </div>
-              <button
-                style={{ ...styles.installBtn, ...(status?.installed ? styles.installBtnDone : {}) }}
-                onClick={() => !installing && install(tool.id)}
-                disabled={installing || status?.installed}
-              >
-                {status?.installed ? 'Ready' : installing ? '…' : 'Install'}
-              </button>
-            </div>
-          )
-        })}
+              <div className="hoist-list-row-meta">
+                {h.version !== '—' ? (
+                  <span className="badge badge-ok">v{h.version}</span>
+                ) : (
+                  <span className="badge">not installed</span>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
-
-      {state.error && <div style={styles.error}>{state.error}</div>}
-
-      <div style={styles.stepActions}>
-        <button style={styles.primaryBtn} onClick={onNext}>
-          Continue
-        </button>
-      </div>
-    </div>
+    </section>
   )
 }
 
-function KeysStep({ onBack, onNext }: { onBack: () => void; onNext: () => void }) {
-  const [providers, setProviders] = useState<{ id: string; label: string; defaultBaseUrl?: string; envKeys: string[] }[]>([])
-  const [state, setState] = useState<VaultState>({ entries: [], savingId: null, lastProbe: {} })
-  const [activeProvider, setActiveProvider] = useState<string | null>(null)
-  const [draftKey, setDraftKey] = useState('')
-  const [draftLabel, setDraftLabel] = useState('')
-  const [error, setError] = useState<string | null>(null)
+/* ───── Keys surface (1Password item-catalogue pattern) ───────── */
 
-  useEffect(() => {
-    window.hoist.provider.list().then((list) => {
-      setProviders(list)
-      if (list.length > 0 && !activeProvider) setActiveProvider(list[0].id)
-    })
-    refreshVault()
-  }, [])
+function KeysSurface() {
+  const [catalogueOpen, setCatalogueOpen] = useState(false)
+  const [scope, setScope] = useState<ScopeId>('all')
 
-  async function refreshVault() {
-    const res = await window.hoist.vault.list()
-    if (res.ok) {
-      setState((s) => ({ ...s, entries: res.entries }))
-    }
-  }
+  const entries = [
+    { id: 'anthropic',  name: 'Anthropic',   kind: 'api_key', env: 'ANTHROPIC_API_KEY',  preview: 'sk-ant-…9def', status: 'ok',   lastProbe: '12 min ago' },
+    { id: 'openai',     name: 'OpenAI',      kind: 'api_key', env: 'OPENAI_API_KEY',     preview: 'sk-…81ab2',  status: 'ok',   lastProbe: '4 min ago' },
+    { id: 'vertex',     name: 'Google Vertex', kind: 'cloud_creds', env: '—',             preview: 'project: acme-prod · region: us-central1', status: 'ok', lastProbe: '1h ago' },
+    { id: 'bedrock',    name: 'AWS Bedrock', kind: 'cloud_creds', env: '—',             preview: 'profile: default · region: us-east-1',    status: 'bad', lastProbe: 'never' },
+  ]
 
-  async function saveKey() {
-    if (!activeProvider || !draftKey.trim()) return
-    setState((s) => ({ ...s, savingId: activeProvider }))
-    setError(null)
-    try {
-      const res = await window.hoist.vault.set({ id: secretIdFor(activeProvider), value: draftKey.trim(), label: draftLabel.trim() || undefined })
-      if (!res.ok) {
-        setError(res.error ?? 'Failed to save key')
-      } else {
-        setDraftKey('')
-        setDraftLabel('')
-        await refreshVault()
-      }
-    } catch (err) {
-      setError(errMsg(err))
-    } finally {
-      setState((s) => ({ ...s, savingId: null }))
-    }
-  }
-
-  async function probe(providerId: string) {
-    setError(null)
-    const res = await window.hoist.probe.run({ providerId, secretId: secretIdFor(providerId) })
-    if (!res.ok) {
-      setError(res.error ?? 'Probe failed')
-      setState((s) => ({
-        ...s,
-        lastProbe: {
-          ...s.lastProbe,
-          [providerId]: { ok: false, status: 'error', detail: res.error, checkedAt: new Date().toISOString() },
-        },
-      }))
-      return
-    }
-    const result = res.result!
-    setState((s) => ({
-      ...s,
-      lastProbe: {
-        ...s.lastProbe,
-        [providerId]: {
-          ok: result.valid,
-          status: result.status,
-          detail: result.detail,
-          checkedAt: result.checkedAt,
-        },
-      },
-    }))
-  }
-
-  async function copy(providerId: string) {
-    await window.hoist.vault.copy(secretIdFor(providerId))
-  }
-
-  async function remove(providerId: string) {
-    await window.hoist.vault.delete(secretIdFor(providerId))
-    await refreshVault()
-  }
+  const visible = entries.filter((e) => scope === 'all' || e.id === scope)
 
   return (
-    <div style={styles.step}>
-      <h2 style={styles.heading}>Provider keys</h2>
-      <p style={styles.subtitle}>Stored encrypted in your OS keychain via Electron safeStorage. Never leaves this machine.</p>
-
-      <div style={styles.cardList}>
-        {providers.map((provider) => {
-          const entry = state.entries.find((e) => e.id === secretIdFor(provider.id))
-          const probeResult = state.lastProbe[provider.id]
-          const isActive = activeProvider === provider.id
-          return (
-            <div key={provider.id} style={{ ...styles.card, ...styles.cardVertical, ...(isActive ? styles.cardActive : {}) }}>
-              <div style={styles.cardRow}>
-                <div>
-                  <div style={styles.cardTitle}>{provider.label}</div>
-                  <div style={styles.cardStatus}>
-                    {entry
-                      ? `Saved · ${entry.preview ?? '••••'}${entry.updatedAt ? ` · ${new Date(entry.updatedAt).toLocaleDateString()}` : ''}`
-                      : 'No key saved'}
-                  </div>
-                  <div style={styles.envHint}>{provider.envKeys.join(', ')}</div>
+    <section className="hoist-pane">
+      <PaneHeader
+        title="Provider keys"
+        subtitle="Encrypted at rest in safeStorage. Validated against each provider."
+        primaryAction={<button className="btn btn-primary btn-pill" onClick={() => setCatalogueOpen(true)}>+ New key</button>}
+      />
+      <div className="hoist-pane-toolbar">
+        <ScopePicker value={scope} onChange={setScope} />
+        <input className="input hoist-search" placeholder="Filter keys…" />
+      </div>
+      <div className="hoist-pane-body">
+        <div className="hoist-list">
+          {visible.map((e, i) => (
+            <button key={e.id} className={`hoist-list-row${i === 0 ? ' is-selected' : ''}`}>
+              <span className="hoist-list-row-icon">{providerGlyph(e.id)}</span>
+              <div className="hoist-list-row-body">
+                <div className="hoist-list-row-title">
+                  {e.name}
+                  <span className="badge">{e.kind === 'api_key' ? 'API key' : 'Cloud creds'}</span>
                 </div>
-                <div style={styles.cardActions}>
-                  <button style={styles.miniBtn} onClick={() => setActiveProvider(provider.id)}>Edit</button>
-                  <button
-                    style={styles.miniBtn}
-                    onClick={() => probe(provider.id)}
-                    disabled={!entry}
-                  >
-                    Validate
-                  </button>
-                  <button style={styles.miniBtn} onClick={() => copy(provider.id)} disabled={!entry}>Copy</button>
-                  <button style={styles.miniBtnDanger} onClick={() => remove(provider.id)} disabled={!entry}>Delete</button>
+                <div className="hoist-list-row-sub muted">
+                  <span className="mono">{e.env}</span>
+                  <span className="hoist-dot-sep">·</span>
+                  <span className="mono">{e.preview}</span>
                 </div>
               </div>
-              {probeResult && (
-                <div style={probeResult.ok ? styles.probeOk : styles.probeBad}>
-                  {probeResult.ok ? '✓ ' : '✗ '}
-                  {probeResult.status}{probeResult.detail ? ` · ${probeResult.detail}` : ''}
-                  <span style={styles.probeTime}> · {new Date(probeResult.checkedAt).toLocaleTimeString()}</span>
-                </div>
-              )}
-              {isActive && (
-                <div style={styles.draftRow}>
-                  <input
-                    style={styles.input}
-                    placeholder={`Paste ${provider.envKeys[0]}…`}
-                    value={draftKey}
-                    onChange={(e) => setDraftKey(e.target.value)}
-                    type="password"
-                  />
-                  <input
-                    style={{ ...styles.input, flexBasis: 160 }}
-                    placeholder="Label (optional)"
-                    value={draftLabel}
-                    onChange={(e) => setDraftLabel(e.target.value)}
-                  />
-                  <button
-                    style={styles.primaryBtn}
-                    onClick={saveKey}
-                    disabled={!draftKey.trim() || state.savingId === provider.id}
-                  >
-                    {state.savingId === provider.id ? 'Saving…' : 'Save'}
-                  </button>
-                </div>
-              )}
-            </div>
-          )
-        })}
+              <div className="hoist-list-row-meta">
+                {e.status === 'ok'
+                  ? <span className="badge badge-ok">valid</span>
+                  : <span className="badge badge-bad">invalid</span>}
+                <span className="muted hoist-last-probe">{e.lastProbe}</span>
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
-
-      {error && <div style={styles.error}>{error}</div>}
-
-      <div style={styles.stepActions}>
-        <button style={styles.secondaryBtn} onClick={onBack}>
-          Back
-        </button>
-        <button style={styles.primaryBtn} onClick={onNext}>
-          Continue
-        </button>
-      </div>
-    </div>
+      {catalogueOpen && <NewItemCatalogue onClose={() => setCatalogueOpen(false)} />}
+    </section>
   )
 }
 
-function GatewayStep({ onBack, onNext }: { onBack: () => void; onNext: () => void }) {
-  const [gateways, setGateways] = useState<{
-    id: string
-    label: string
-    baseUrl: string
-    selfHostedHint?: string
-    docUrl?: string
-    endpoints: { openai?: string; anthropic?: string }
-    auth: { header: string; scheme: string; envVar: string }
-    modelIdFormat: string
-    nativeProviders: string[]
-    notes?: string
-    placeholders: string[]
-  }[]>([])
-  const [providers, setProviders] = useState<{
-    id: string
-    label: string
-    envKeys: string[]
-    defaultBaseUrl?: string
-    notes?: string
-  }[]>([])
-  const [harnesses, setHarnesses] = useState<{ id: string; name: string }[]>([])
-  const [discovered, setDiscovered] = useState<Record<string, { installed: boolean; version: string | null }>>({})
-
-  const [gatewayId, setGatewayId] = useState<string>('direct')
-  const [providerId, setProviderId] = useState<string>('anthropic')
-  const [baseUrl, setBaseUrl] = useState('')
-  const [apiKey, setApiKey] = useState('')
-  const [harnessIds, setHarnessIds] = useState<Record<string, boolean>>({})
-  const [applying, setApplying] = useState(false)
-  const [results, setResults] = useState<{
-    harnessId: string
-    harnessName: string
-    ok: boolean
-    error?: string
-    path?: string
-    note?: string
-    envHint?: Record<string, string>
-  }[]>([])
-  const [error, setError] = useState<string | null>(null)
-  const [effectiveBaseUrl, setEffectiveBaseUrl] = useState<string | null>(null)
-  const [clipboardSuggestion, setClipboardSuggestion] = useState<string | null>(null)
-
-  useEffect(() => {
-    refreshAll()
-    void loadClipboardSuggestion()
-  }, [])
-
-  /**
-   * If the clipboard currently holds a URL that looks like a gateway base URL,
-   * surface it as a one-click suggestion. We never read the clipboard
-   * passively in main; this single call is gated behind the user landing
-   * on the Gateway step.
-   */
-  async function loadClipboardSuggestion() {
-    try {
-      const res = await window.hoist.clipboard.read()
-      if (!res.ok || !res.text) return
-      const url = extractBaseUrl(res.text)
-      if (url && url !== baseUrl) setClipboardSuggestion(url)
-    } catch {
-      // best-effort; suggestion is optional
-    }
+function providerGlyph(id: string): React.ReactNode {
+  switch (id) {
+    case 'anthropic': return <span style={{fontWeight:600, fontSize: 13}}>A</span>
+    case 'openai':    return <Circle size={14} />
+    case 'vertex':    return <span style={{fontWeight:600, fontSize: 13}}>V</span>
+    case 'bedrock':   return <span style={{fontWeight:600, fontSize: 13}}>B</span>
+    case 'groq':      return <span style={{fontWeight:600, fontSize: 13}}>G</span>
+    default:          return <Circle size={14} />
   }
+}
 
-  async function refreshAll() {
-    const [g, p, h, d] = await Promise.all([
-      window.hoist.gateway.list(),
-      window.hoist.provider.list(),
-      window.hoist.harness.list(),
-      window.hoist.harness.discover(),
-    ])
-    setGateways(g)
-    setProviders(p)
-    setHarnesses(h.map((x) => ({ id: x.id, name: x.name })))
-    const map = h.map((x) => ({ id: x.id, name: x.name }))
-    setHarnessIds(
-      map.reduce<Record<string, boolean>>((acc, x) => {
-        acc[x.id] = !!d[x.id]?.path
-        return acc
-      }, {}),
-    )
-    setDiscovered(
-      h.reduce<Record<string, { installed: boolean; version: string | null }>>((acc, _id, i) => {
-        const x = h[i]
-        acc[x.id] = { installed: !!d[x.id]?.path, version: d[x.id]?.version ?? null }
-        return acc
-      }, {}),
-    )
-    const initialProvider = p.find((x) => x.id === 'anthropic') ?? p[0]
-    if (initialProvider) {
-      setProviderId(initialProvider.id)
-      setBaseUrl(initialProvider.defaultBaseUrl ?? '')
-    }
-  }
-
-  const selectedGateway = gatewayId === 'direct' ? null : gateways.find((g) => g.id === gatewayId)
-
-  function pickGateway(g: { id: string; baseUrl: string } | null) {
-    if (!g) {
-      const direct = providers.find((p) => p.id === providerId)
-      setBaseUrl(direct?.defaultBaseUrl ?? '')
-    } else {
-      setBaseUrl(g.baseUrl)
-    }
-  }
-
-  function pickProvider(p: { id: string; defaultBaseUrl?: string }) {
-    setProviderId(p.id)
-    if (gatewayId === 'direct') setBaseUrl(p.defaultBaseUrl ?? '')
-  }
-
-  async function apply() {
-    setError(null)
-    setResults([])
-    setEffectiveBaseUrl(null)
-    setApplying(true)
-    try {
-      const selectedHarnessIds = harnesses.filter((h) => harnessIds[h.id]).map((h) => h.id)
-      if (selectedHarnessIds.length === 0) {
-        setError('Select at least one harness to apply.')
-        return
-      }
-      if (!apiKey.trim()) {
-        setError('Paste an API key (or gateway token) first.')
-        return
-      }
-      const res = await window.hoist.gateway.apply({
-        gatewayId: gatewayId === 'direct' ? null : gatewayId,
-        providerId,
-        baseUrl,
-        apiKey: apiKey.trim(),
-        harnessIds: selectedHarnessIds,
-      })
-      if (!res.ok) {
-        setError(res.error ?? 'Apply failed.')
-        return
-      }
-      setResults(res.wiring ?? [])
-      setEffectiveBaseUrl(res.effectiveBaseUrl ?? baseUrl)
-    } catch (err) {
-      setError(errMsg(err))
-    } finally {
-      setApplying(false)
-    }
-  }
-
-  const providerObj = providers.find((p) => p.id === providerId)
-
+function ScopePicker({ value, onChange }: { value: ScopeId; onChange: (v: ScopeId) => void }) {
+  const opts: { id: ScopeId; label: string }[] = [
+    { id: 'all', label: 'All providers' },
+    { id: 'anthropic', label: 'Anthropic' },
+    { id: 'openai', label: 'OpenAI' },
+  ]
   return (
-    <div style={styles.step}>
-      <h2 style={styles.heading}>Gateway routing</h2>
-      <p style={styles.subtitle}>Point your tools at a hosted gateway or paste any OpenAI/Anthropic-compatible URL. Hoist writes per-harness config (Claude Code <code style={styles.code}>~/.claude/settings.json</code>, Codex <code style={styles.code}>config.toml</code>, OpenCode <code style={styles.code}>opencode.json</code>).</p>
-
-      <div style={styles.subheading}>1. Gateway</div>
-      <div style={styles.grid}>
-        <button
-          onClick={() => {
-            setGatewayId('direct')
-            pickGateway(null)
-          }}
-          style={{ ...styles.gatewayCard, ...(gatewayId === 'direct' ? styles.gatewayCardActive : {}) }}
-        >
-          <div style={styles.gatewayCardTitle}>Direct (no gateway)</div>
-          <div style={styles.gatewayCardSub}>Use each provider's native API URL.</div>
-        </button>
-        {gateways.map((g) => (
+    <div className="hoist-scope-picker">
+      <button className="hoist-scope-trigger">
+        <ChevronDown className="hoist-scope-icon" size={12} />
+        <span>{opts.find((o) => o.id === value)?.label}</span>
+      </button>
+      <div className="hoist-scope-menu">
+        {opts.map((o) => (
           <button
-            key={g.id}
-            onClick={() => {
-              setGatewayId(g.id)
-              pickGateway({ id: g.id, baseUrl: g.baseUrl })
-            }}
-            style={{ ...styles.gatewayCard, ...(gatewayId === g.id ? styles.gatewayCardActive : {}) }}
+            key={o.id}
+            className={`hoist-scope-item${o.id === value ? ' is-active' : ''}`}
+            onClick={() => onChange(o.id)}
           >
-            <div style={styles.gatewayCardTitle}>{g.label}</div>
-            <div style={styles.gatewayCardSub}>{g.baseUrl || '(custom URL)'}</div>
-            {g.placeholders.length > 0 && (
-              <div style={styles.gatewayCardWarn}>fill in {g.placeholders.map((p) => `<${p}>`).join(', ')}</div>
-            )}
+            {o.id === value && <Check className="hoist-scope-check" size={12} strokeWidth={2.5} />}
+            <span>{o.label}</span>
           </button>
         ))}
       </div>
-
-      <div style={styles.subheading}>2. Provider & base URL</div>
-      <div style={{ ...styles.card, ...styles.cardVertical }}>
-        <div>
-          <div style={styles.cardTitle}>Provider</div>
-          <select
-            style={{ ...styles.input, width: '100%' }}
-            value={providerId}
-            onChange={(e) => {
-              const p = providers.find((x) => x.id === e.target.value)
-              if (p) pickProvider(p)
-            }}
-          >
-            {providers.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label} {p.envKeys.length > 0 ? `(${p.envKeys[0]})` : '(cloud creds)'}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <div style={styles.cardTitle}>Base URL</div>
-          <input
-            style={{ ...styles.input, width: '100%' }}
-            value={baseUrl}
-            placeholder="https://gateway.example.com"
-            onChange={(e) => {
-              setBaseUrl(e.target.value)
-              // Discard suggestion once the user edits anything.
-              if (clipboardSuggestion) setClipboardSuggestion(null)
-            }}
-          />
-          {clipboardSuggestion && (
-            <div style={styles.clipboardSuggestion}>
-              <span style={styles.envHint}>
-                Clipboard has <code style={styles.code}>{clipboardSuggestion}</code>
-              </span>
-              <button
-                style={styles.miniBtn}
-                onClick={() => {
-                  setBaseUrl(clipboardSuggestion)
-                  setClipboardSuggestion(null)
-                }}
-              >
-                Use this URL
-              </button>
-              <button
-                style={styles.miniBtn}
-                onClick={() => setClipboardSuggestion(null)}
-                title="Dismiss"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-          {selectedGateway?.selfHostedHint && (
-            <div style={styles.envHint}>{selectedGateway.selfHostedHint}</div>
-          )}
-          {selectedGateway && (
-            <div style={styles.gatewayDoc}>
-              <span>
-                Endpoint: <code style={styles.code}>{selectedGateway.endpoints.anthropic ?? selectedGateway.endpoints.openai ?? '/v1'}</code> · Auth: <code style={styles.code}>{selectedGateway.auth.header}</code>
-                {selectedGateway.auth.scheme && selectedGateway.auth.scheme !== 'raw' ? ` (${selectedGateway.auth.scheme})` : ''} · Env: <code style={styles.code}>{selectedGateway.auth.envVar}</code>
-              </span>
-              {selectedGateway.docUrl && (
-                <a href={selectedGateway.docUrl} target="_blank" rel="noreferrer" style={styles.docLink}>docs ↗</a>
-              )}
-            </div>
-          )}
-          {providerObj?.notes && (
-            <div style={styles.envHint}>{providerObj.notes}</div>
-          )}
-        </div>
-
-        <div>
-          <div style={styles.cardTitle}>API key / token</div>
-          <input
-            style={{ ...styles.input, width: '100%' }}
-            type="password"
-            placeholder={providerObj?.envKeys?.[0] ?? 'paste token'}
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-          />
-          <div style={styles.envHint}>Encrypted at rest in OS keychain via safeStorage.</div>
-        </div>
-      </div>
-
-      <div style={styles.subheading}>3. Apply to harnesses</div>
-      <div style={styles.cardList}>
-        {harnesses.map((h) => {
-          const inst = discovered[h.id]
-          return (
-            <label key={h.id} style={styles.harnessRow}>
-              <input
-                type="checkbox"
-                checked={!!harnessIds[h.id]}
-                onChange={(e) => setHarnessIds((s) => ({ ...s, [h.id]: e.target.checked }))}
-              />
-              <span style={styles.harnessName}>{h.name}</span>
-              <span style={styles.envHint}>
-                {inst?.installed ? `installed · ${inst.version ?? '?'}` : 'not installed'}
-              </span>
-            </label>
-          )
-        })}
-      </div>
-
-      {error && <div style={styles.error}>{error}</div>}
-
-      {results.length > 0 && (
-        <div style={styles.resultsBlock}>
-          <div style={styles.subheading}>Wiring results</div>
-          {results.map((r, i) => (
-            <div key={i} style={{ ...styles.resultRow, ...(r.ok ? styles.resultRowOk : styles.resultRowBad) }}>
-              <div style={{ fontWeight: 600 }}>{r.harnessName}</div>
-              {r.error && <div style={{ fontSize: 12 }}>{r.error}</div>}
-              {r.path && <div style={styles.envHint}>{r.path}</div>}
-              {r.note && <div style={styles.envHint}>{r.note}</div>}
-              {r.envHint && (
-                <pre style={styles.codeBlock}>
-                  {Object.entries(r.envHint).map(([k, v]) => `${k} = ${v}`).join('\n')}
-                </pre>
-              )}
-            </div>
-          ))}
-          {effectiveBaseUrl && (
-            <div style={styles.envHint}>Effective base URL: <code style={styles.code}>{effectiveBaseUrl}</code></div>
-          )}
-        </div>
-      )}
-
-      <div style={styles.stepActions}>
-        <button style={styles.secondaryBtn} onClick={onBack}>
-          Back
-        </button>
-        <button
-          style={{ ...styles.secondaryBtn }}
-          onClick={onNext}
-          disabled={applying}
-        >
-          Skip
-        </button>
-        <button
-          style={styles.primaryBtn}
-          onClick={apply}
-          disabled={applying || !baseUrl || !apiKey}
-        >
-          {applying ? 'Applying…' : 'Apply wiring'}
-        </button>
-      </div>
     </div>
   )
 }
 
-function DoneStep() {
+function NewItemCatalogue({ onClose }: { onClose: () => void }) {
+  const tiles = [
+    { id: 'anthropic',    title: 'Anthropic API key',     desc: 'sk-ant-…',          icon: 'A', accent: true },
+    { id: 'openai',       title: 'OpenAI API key',        desc: 'sk-…',              icon: <Circle size={18} strokeWidth={2.25} /> },
+    { id: 'azure',        title: 'Azure OpenAI',          desc: 'endpoint + deployment + key', icon: 'Az' },
+    { id: 'vertex',       title: 'Google Vertex AI',      desc: 'project + region + ADC',     icon: 'V' },
+    { id: 'bedrock',      title: 'AWS Bedrock',           desc: 'profile + region',           icon: 'B' },
+    { id: 'custom-openai', title: 'Custom OpenAI endpoint', desc: 'OpenAI-compatible URL',      icon: '·' },
+  ]
   return (
-    <div style={{ ...styles.step, textAlign: 'center', paddingTop: 80 }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>&#x26A1;</div>
-      <h2 style={styles.heading}>You're wired up</h2>
-      <p style={styles.subtitle}>Agent harnesses installed, keys validated. Open Claude Code or your tool of choice and start coding.</p>
+    <div className="hoist-modal-backdrop" onClick={onClose}>
+      <div className="hoist-modal hoist-modal-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="hoist-modal-header">
+          <h3>What would you like to add?</h3>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}><X size={14} /></button>
+        </div>
+        <div className="hoist-modal-body">
+          <input className="input input-lg" placeholder="Search by provider…" />
+          <div className="hoist-catalogue-grid">
+            {tiles.map((t) => (
+              <button key={t.id} className={`hoist-catalogue-tile${t.accent ? ' is-featured' : ''}`}>
+                <div className="hoist-catalogue-tile-icon">{t.icon}</div>
+                <div>
+                  <div className="hoist-catalogue-tile-title">{t.title}</div>
+                  <div className="hoist-catalogue-tile-sub muted mono">{t.desc}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
 
-function secretIdFor(providerId: string): string {
-  return `provider:${providerId}:api_key`
+/* ───── Gateway surface (searchable list with clip-on suggestion) ─ */
+
+function GatewaySurface() {
+  const gateways = [
+    { id: 'corporate',  label: 'Corporate AI gateway',  url: 'https://gateway.<your-org>.com',     placeholder: true,  native: 'anthropic, openai',       env: 'GATEWAY_API_KEY' },
+    { id: 'truefoundry',label: 'TrueFoundry AI Gateway', url: 'https://gateway.truefoundry.ai',      placeholder: false, native: 'anthropic, openai, bedrock, vertex, azure-foundry', env: 'TFY_API_KEY' },
+    { id: 'litellm',    label: 'LiteLLM Proxy',         url: 'http://localhost:4000',              placeholder: false, native: 'anthropic, openai, azure, vertex, bedrock', env: 'LITELLM_API_KEY' },
+    { id: 'cloudflare', label: 'Cloudflare AI Gateway', url: 'https://gateway.ai.cloudflare.com/v1/<account_id>', placeholder: true, native: 'openai, anthropic, workers-ai', env: 'CF_API_TOKEN' },
+    { id: 'vercel',     label: 'Vercel AI Gateway',     url: 'https://api.vercel.com/v1/ai',        placeholder: false, native: 'openai, anthropic, google', env: 'VERCEL_API_KEY' },
+    { id: 'openrouter', label: 'OpenRouter',            url: 'https://openrouter.ai/api/v1',       placeholder: false, native: 'openai, anthropic, google, meta, mistral', env: 'OPENROUTER_API_KEY' },
+    { id: 'together',   label: 'Together AI',           url: 'https://api.together.xyz/v1',        placeholder: false, native: 'openai-compat', env: 'TOGETHER_API_KEY' },
+    { id: 'opencode',   label: 'OpenCode Zen',          url: 'https://opencode.ai/zen/v1',         placeholder: false, native: 'anthropic, openai, google', env: 'OPENCODE_ZEN_API_KEY' },
+    { id: 'zenlayer',   label: 'ZenLayer AI Gateway',   url: 'https://gateway.theturbo.ai',        placeholder: false, native: 'openai, anthropic, google', env: 'ZENLAYER_API_KEY' },
+    { id: 'claude-code-compatible', label: 'Claude Code-compatible (custom)', url: '(custom)', placeholder: true, native: 'anthropic', env: 'ANTHROPIC_API_KEY' },
+  ]
+  const [selected, setSelected] = useState('truefoundry')
+  const [filter, setFilter] = useState('')
+
+  const filtered = gateways.filter((g) =>
+    !filter || g.label.toLowerCase().includes(filter.toLowerCase()) || g.id.includes(filter.toLowerCase()),
+  )
+
+  return (
+    <section className="hoist-pane">
+      <PaneHeader
+        title="Gateway"
+        subtitle="Point your tools at a hosted gateway or a custom OpenAI/Anthropic-compatible URL."
+        primaryAction={<button className="btn btn-primary btn-pill">Apply wiring →</button>}
+      />
+      <div className="hoist-pane-toolbar">
+        <input
+          className="input hoist-search"
+          placeholder="Filter gateways…"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+      </div>
+      <div className="hoist-pane-body">
+        <div className="hoist-list">
+          {filtered.map((g) => (
+            <button
+              key={g.id}
+              onClick={() => setSelected(g.id)}
+              className={`hoist-list-row${selected === g.id ? ' is-selected' : ''}`}
+            >
+              <span className="hoist-list-row-icon"><Globe size={16} strokeWidth={2.25} /></span>
+              <div className="hoist-list-row-body">
+                <div className="hoist-list-row-title">
+                  {g.label}
+                  {g.placeholder && <span className="badge badge-warn">placeholder</span>}
+                </div>
+                <div className="hoist-list-row-sub muted mono">{g.url}</div>
+                <div className="hoist-list-row-sub muted" style={{ marginTop: 2 }}>
+                  native: {g.native} · env: <span className="mono">{g.env}</span>
+                </div>
+              </div>
+              <div className="hoist-list-row-meta">
+                {selected === g.id && <Check className="hoist-list-row-check" size={12} strokeWidth={3} />}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
 }
 
-function errMsg(err: unknown): string {
-  return err instanceof Error ? err.message : String(err)
+/* ───── Watchtower status surface ───────────────────────────────── */
+
+function StatusSurface() {
+  const stats = [
+    { key: 'stored',    value: 11, label: 'Keys stored',       badge: 'ok',   sub: 'across 4 providers' },
+    { key: 'valid',     value: 9,  label: 'Valid right now',   badge: 'ok',   sub: 'last probe < 1h' },
+    { key: 'invalid',   value: 1,  label: 'Invalid',           badge: 'bad',  sub: 'Bedrock · never probed' },
+    { key: 'expiring',  value: 1,  label: 'Expiring in 30d',   badge: 'warn', sub: 'OpenAI key · set 2025-12' },
+    { key: 'reused',    value: 0,  label: 'Reused',            badge: 'ok',   sub: 'across providers' },
+    { key: 'harnesses', value: 2,  label: 'Harnesses outdated', badge: 'warn', sub: 'Codex · latest 0.144.3' },
+  ]
+  return (
+    <section className="hoist-pane">
+      <PaneHeader
+        title="Watchtower"
+        subtitle="A health view of your secrets and harnesses."
+        primaryAction={<button className="btn btn-primary btn-pill">Re-probe all</button>}
+      />
+      <div className="hoist-pane-body">
+        <div className="hoist-stat-grid">
+          {stats.map((s) => (
+            <button key={s.key} className={`hoist-stat-card`}>
+              <div className="hoist-stat-value">{s.value}</div>
+              <div className={`badge badge-${s.badge}`}>{s.label}</div>
+              <div className="hoist-stat-sub muted">{s.sub}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
 }
 
-/**
- * Pull the first https? URL out of arbitrary clipboard text. Returns null
- * if nothing on the clipboard looks like a base URL we can route to.
- *
- * Restriction: no whitespace or newlines inside the URL — the clipboard
- * may carry arbitrary text and we don't want partial paths leaking in.
- */
-export function extractBaseUrl(text: string): string | null {
-  const trimmed = text.trim()
-  const m = trimmed.match(/^https?:\/\/[^\s/?#]+/i)
-  if (!m) return null
-  return m[0].replace(/\/+$/, '')
+/* ───── Right rail (context-aware detail) ─────────────────────────── */
+
+function DetailRail({ surface }: { surface: SurfaceId }) {
+  return (
+    <aside className="hoist-rail">
+      {surface === 'harnesses' && (
+        <>
+          <div className="hoist-rail-section">
+            <div className="hoist-rail-section-label">Claude Code</div>
+            <Field label="Status" value={<span className="badge badge-ok">installed · v2.1.211</span>} />
+            <Field label="Binary" value={<span className="mono">/usr/local/bin/claude</span>} />
+            <Field label="Provider" value="Anthropic (configured)" />
+            <Field label="Gateway" value="Direct — no gateway" />
+          </div>
+          <div className="hoist-rail-section">
+            <div className="hoist-rail-section-label">Actions</div>
+            <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'flex-start' }}><RotateCw size={14} /> Re-detect</button>
+            <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'flex-start' }}><Download size={14} /> Update</button>
+            <button className="btn btn-ghost btn-sm btn-danger" style={{ width: '100%', justifyContent: 'flex-start' }}><X size={14} /> Uninstall</button>
+          </div>
+        </>
+      )}
+      {surface === 'keys' && (
+        <>
+          <div className="hoist-rail-section">
+            <div className="hoist-rail-section-label">Anthropic</div>
+            <Field label="Status" value={<span className="badge badge-ok">valid</span>} />
+            <Field label="Environment variable" value={<span className="mono">ANTHROPIC_API_KEY</span>} />
+            <Field label="Last probed" value="12 min ago" />
+            <Field label="Preview" value={<span className="mono">sk-ant-…9def</span>} />
+          </div>
+          <div className="hoist-rail-section">
+            <div className="hoist-rail-section-label">Actions</div>
+            <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'flex-start' }}><RotateCw size={14} /> Probe now</button>
+            <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'flex-start' }}>⎘ Copy (auto-clears 30s)</button>
+            <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'flex-start' }}><Pencil size={14} /> Edit</button>
+            <button className="btn btn-ghost btn-sm btn-danger" style={{ width: '100%', justifyContent: 'flex-start' }}><X size={14} /> Delete</button>
+          </div>
+        </>
+      )}
+      {surface === 'gateway' && (
+        <>
+          <div className="hoist-rail-section">
+            <div className="hoist-rail-section-label">TrueFoundry AI Gateway</div>
+            <Field label="Status" value={<span className="badge badge-accent">configured</span>} />
+            <Field label="Base URL" value={<span className="mono">https://gateway.truefoundry.ai</span>} />
+            <Field label="Auth header" value={<span className="mono">Authorization: Bearer TFY_API_KEY</span>} />
+            <Field label="Native providers" value="anthropic, openai, bedrock, vertex, azure-foundry" />
+          </div>
+          <div className="hoist-rail-section">
+            <div className="hoist-rail-section-label">Wired into</div>
+            <ul className="hoist-rail-list">
+              <li><span className="badge badge-ok">Claude Code</span> <span className="muted mono">env block</span></li>
+              <li><span className="badge badge-ok">OpenCode</span> <span className="muted mono">provider block</span></li>
+              <li><span className="badge badge-warn">Codex</span> <span className="muted mono">not installed</span></li>
+            </ul>
+          </div>
+        </>
+      )}
+      {surface === 'status' && (
+        <>
+          <div className="hoist-rail-section">
+            <div className="hoist-rail-section-label">Recent probes</div>
+            <ul className="hoist-rail-list">
+              <li><span className="badge badge-ok">Anthropic</span> <span className="muted">12 min ago</span></li>
+              <li><span className="badge badge-ok">OpenAI</span> <span className="muted">4 min ago</span></li>
+              <li><span className="badge badge-ok">Vertex</span> <span className="muted">1 hour ago</span></li>
+              <li><span className="badge badge-bad">Bedrock</span> <span className="muted">never</span></li>
+            </ul>
+          </div>
+        </>
+      )}
+    </aside>
+  )
 }
 
-const styles: Record<string, React.CSSProperties> = {
-  shell: {
-    display: 'flex',
-    minHeight: '100vh',
-  },
-  sidebar: {
-    width: 220,
-    background: 'var(--surface)',
-    borderRight: '1px solid var(--border)',
-    display: 'flex',
-    flexDirection: 'column',
-    padding: '20px 16px',
-    flexShrink: 0,
-  },
-  logo: {
-    fontSize: 18,
-    fontWeight: 700,
-    letterSpacing: '-0.5px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 32,
-  },
-  logoIcon: {
-    fontSize: 20,
-  },
-  nav: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-    flex: 1,
-  },
-  navItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '8px 12px',
-    borderRadius: 8,
-    border: 'none',
-    background: 'none',
-    color: 'var(--text-muted)',
-    fontSize: 13,
-    cursor: 'pointer',
-    textAlign: 'left' as const,
-    transition: 'background 0.15s',
-  },
-  navItemActive: {
-    color: 'var(--text)',
-  },
-  navItemCurrent: {
-    background: 'var(--accent-glow)',
-    color: 'var(--accent)',
-  },
-  stepDot: {
-    fontSize: 8,
-    width: 14,
-    textAlign: 'center' as const,
-  },
-  sidebarFooter: {
-    borderTop: '1px solid var(--border)',
-    paddingTop: 12,
-  },
-  version: {
-    fontSize: 11,
-    color: 'var(--text-muted)',
-  },
-  main: {
-    flex: 1,
-    padding: '40px 48px',
-    overflowY: 'auto' as const,
-  },
-  step: {
-    maxWidth: 640,
-  },
-  heading: {
-    fontSize: 24,
-    fontWeight: 700,
-    letterSpacing: '-0.5px',
-    marginBottom: 4,
-  },
-  subtitle: {
-    color: 'var(--text-muted)',
-    marginBottom: 28,
-    fontSize: 13,
-    lineHeight: 1.5,
-  },
-  cardList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-    marginBottom: 28,
-  },
-  card: {
-    background: 'var(--surface)',
-    border: '1px solid var(--border)',
-    borderRadius: 10,
-    padding: '16px 20px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cardVertical: {
-    flexDirection: 'column',
-    alignItems: 'stretch',
-    gap: 12,
-  },
-  cardActive: {
-    borderColor: 'var(--accent)',
-    boxShadow: '0 0 0 1px var(--accent-glow)',
-  },
-  cardRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-    flexWrap: 'wrap' as const,
-  },
-  cardTitle: {
-    fontWeight: 600,
-    fontSize: 14,
-  },
-  cardStatus: {
-    fontSize: 12,
-    color: 'var(--text-muted)',
-    marginTop: 2,
-  },
-  envHint: {
-    fontSize: 11,
-    color: 'var(--text-muted)',
-    marginTop: 4,
-    opacity: 0.7,
-    fontFamily: 'ui-monospace, SFMono-Regular, monospace',
-  },
-  cardActions: {
-    display: 'flex',
-    gap: 6,
-    flexWrap: 'wrap' as const,
-  },
-  miniBtn: {
-    background: 'var(--accent-glow)',
-    color: 'var(--accent)',
-    border: '1px solid rgba(124, 92, 252, 0.3)',
-    borderRadius: 6,
-    padding: '4px 10px',
-    fontSize: 12,
-    fontWeight: 500,
-    cursor: 'pointer',
-  },
-  miniBtnDanger: {
-    background: 'transparent',
-    color: '#ff6b6b',
-    border: '1px solid rgba(255, 107, 107, 0.3)',
-    borderRadius: 6,
-    padding: '4px 10px',
-    fontSize: 12,
-    fontWeight: 500,
-    cursor: 'pointer',
-  },
-  draftRow: {
-    display: 'flex',
-    gap: 8,
-    flexWrap: 'wrap' as const,
-  },
-  installBtn: {
-    background: 'var(--accent-glow)',
-    color: 'var(--accent)',
-    border: '1px solid rgba(124, 92, 252, 0.3)',
-    borderRadius: 6,
-    padding: '6px 16px',
-    fontSize: 13,
-    fontWeight: 500,
-    cursor: 'pointer',
-  },
-  installBtnDone: {
-    background: 'transparent',
-    color: 'var(--text-muted)',
-    border: '1px solid var(--border)',
-    cursor: 'default',
-  },
-  probeOk: {
-    fontSize: 12,
-    color: '#4ade80',
-    background: 'rgba(74, 222, 128, 0.08)',
-    border: '1px solid rgba(74, 222, 128, 0.2)',
-    padding: '8px 12px',
-    borderRadius: 6,
-  },
-  probeBad: {
-    fontSize: 12,
-    color: '#ff6b6b',
-    background: 'rgba(255, 107, 107, 0.08)',
-    border: '1px solid rgba(255, 107, 107, 0.2)',
-    padding: '8px 12px',
-    borderRadius: 6,
-  },
-  probeTime: {
-    opacity: 0.6,
-    marginLeft: 4,
-  },
-  input: {
-    flex: 1,
-    minWidth: 200,
-    background: 'var(--bg)',
-    border: '1px solid var(--border)',
-    borderRadius: 8,
-    padding: '10px 14px',
-    color: 'var(--text)',
-    fontSize: 14,
-    outline: 'none',
-    fontFamily: 'inherit',
-  },
-  code: {
-    background: 'var(--bg)',
-    padding: '2px 6px',
-    borderRadius: 4,
-    fontSize: 12,
-    fontFamily: 'ui-monospace, SFMono-Regular, monospace',
-    border: '1px solid var(--border)',
-  },
-  stepActions: {
-    display: 'flex',
-    gap: 12,
-    justifyContent: 'flex-end',
-  },
-  primaryBtn: {
-    background: 'var(--accent)',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 8,
-    padding: '10px 24px',
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  secondaryBtn: {
-    background: 'var(--surface)',
-    color: 'var(--text-muted)',
-    border: '1px solid var(--border)',
-    borderRadius: 8,
-    padding: '10px 24px',
-    fontSize: 14,
-    fontWeight: 500,
-    cursor: 'pointer',
-  },
-  error: {
-    background: 'rgba(255, 107, 107, 0.08)',
-    color: '#ff6b6b',
-    border: '1px solid rgba(255, 107, 107, 0.2)',
-    padding: '10px 14px',
-    borderRadius: 8,
-    fontSize: 13,
-    marginBottom: 16,
-  },
-  subheading: {
-    fontSize: 12,
-    fontWeight: 600,
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.05em',
-    color: 'var(--text-muted)',
-    marginBottom: 10,
-    marginTop: 24,
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-    gap: 8,
-    marginBottom: 16,
-  },
-  gatewayCard: {
-    textAlign: 'left' as const,
-    background: 'var(--surface)',
-    border: '1px solid var(--border)',
-    borderRadius: 10,
-    padding: '12px 14px',
-    color: 'var(--text)',
-    cursor: 'pointer',
-  },
-  gatewayCardActive: {
-    borderColor: 'var(--accent)',
-    boxShadow: '0 0 0 1px var(--accent-glow)',
-  },
-  gatewayCardTitle: {
-    fontSize: 13,
-    fontWeight: 600,
-  },
-  gatewayCardSub: {
-    fontSize: 11,
-    color: 'var(--text-muted)',
-    marginTop: 2,
-    fontFamily: 'ui-monospace, SFMono-Regular, monospace',
-    wordBreak: 'break-all' as const,
-  },
-  gatewayCardWarn: {
-    fontSize: 11,
-    color: '#fbbf24',
-    marginTop: 4,
-  },
-  gatewayDoc: {
-    marginTop: 8,
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap' as const,
-    gap: 8,
-    fontSize: 12,
-  },
-  docLink: {
-    color: 'var(--accent)',
-    textDecoration: 'none',
-    fontSize: 11,
-  },
-  select: {
-    width: '100%',
-    background: 'var(--bg)',
-    color: 'var(--text)',
-    border: '1px solid var(--border)',
-    borderRadius: 8,
-    padding: '10px 14px',
-    fontSize: 14,
-    outline: 'none',
-    marginTop: 8,
-    fontFamily: 'inherit',
-  },
-  harnessRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    background: 'var(--surface)',
-    border: '1px solid var(--border)',
-    borderRadius: 10,
-    padding: '12px 14px',
-    fontSize: 13,
-    cursor: 'pointer',
-  },
-  harnessName: {
-    flex: 1,
-    fontWeight: 500,
-  },
-  resultsBlock: {
-    marginTop: 16,
-    marginBottom: 16,
-  },
-  resultRow: {
-    border: '1px solid var(--border)',
-    borderRadius: 10,
-    padding: '12px 16px',
-    marginBottom: 6,
-    fontSize: 13,
-  },
-  resultRowOk: {
-    borderColor: 'rgba(74, 222, 128, 0.3)',
-    background: 'rgba(74, 222, 128, 0.04)',
-  },
-  resultRowBad: {
-    borderColor: 'rgba(255, 107, 107, 0.3)',
-    background: 'rgba(255, 107, 107, 0.04)',
-  },
-  codeBlock: {
-    background: 'var(--bg)',
-    border: '1px solid var(--border)',
-    borderRadius: 6,
-    padding: '8px 12px',
-    margin: '8px 0 0',
-    fontSize: 11,
-    fontFamily: 'ui-monospace, SFMono-Regular, monospace',
-    overflow: 'auto',
-  },
-  clipboardSuggestion: {
-    marginTop: 8,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    background: 'var(--accent-glow)',
-    border: '1px solid rgba(124, 92, 252, 0.25)',
-    borderRadius: 8,
-    padding: '8px 10px',
-    flexWrap: 'wrap' as const,
-  },
+function Field({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="hoist-field">
+      <div className="hoist-field-label">{label}</div>
+      <div className="hoist-field-value">{value}</div>
+    </div>
+  )
+}
+
+function PaneHeader({
+  title, subtitle, primaryAction,
+}: { title: string; subtitle?: string; primaryAction?: React.ReactNode }) {
+  return (
+    <div className="hoist-pane-header">
+      <div>
+        <h2 className="hoist-pane-title">{title}</h2>
+        {subtitle && <p className="hoist-pane-sub muted">{subtitle}</p>}
+      </div>
+      <div className="hoist-pane-actions">{primaryAction}</div>
+    </div>
+  )
+}
+
+/* ───── Command palette (Quick Access) ────────────────────────────── */
+
+function CommandPalette({ onClose, onSelect }: { onClose: () => void; onSelect: (s: SurfaceId) => void }) {
+  const [query, setQuery] = useState('')
+
+  const items = [
+    { id: 'install-claude-code', label: 'Install Claude Code',                hint: 'npm i -g @anthropic-ai/claude-code', kind: 'Action' },
+    { id: 'install-opencode',    label: 'Install OpenCode',                   hint: 'npm i -g opencode-ai',                 kind: 'Action' },
+    { id: 'install-codex',       label: 'Install Codex',                      hint: 'npm i -g @openai/codex',               kind: 'Action' },
+    { id: 'keys-set-anthropic',  label: 'Save Anthropic API key…',            hint: 'Vault · 30s clipboard auto-clear',     kind: 'Action' },
+    { id: 'keys-probe-anthropic',label: 'Probe Anthropic',                    hint: 'GET /v1/models · 5s timeout',          kind: 'Action' },
+    { id: 'gateway-use-truefoundry', label: 'Use TrueFoundry AI Gateway',     hint: 'Wires Claude Code · OpenCode · Codex', kind: 'Gateway' },
+    { id: 'gateway-use-corporate',  label: 'Use Corporate AI gateway',      hint: 'Fill in <your-org> placeholder',        kind: 'Gateway' },
+    { id: 'surface-harnesses',   label: 'Open Harnesses',                     hint: 'Detect + install agent tools',         kind: 'Navigate' },
+    { id: 'surface-keys',        label: 'Open Provider keys',                 hint: 'New item catalogue',                   kind: 'Navigate' },
+    { id: 'surface-gateway',     label: 'Open Gateway',                       hint: '11 gateways · 18 providers',           kind: 'Navigate' },
+    { id: 'surface-status',      label: 'Open Watchtower',                    hint: 'Key health · last probe',              kind: 'Navigate' },
+    { id: 'open-claude-settings',label: 'Reveal ~/.claude/settings.json',      hint: 'Reveal in Finder',                     kind: 'Reveal' },
+    { id: 'open-opencode',       label: 'Reveal ~/.config/opencode/',         hint: 'Reveal in Finder',                     kind: 'Reveal' },
+    { id: 'open-codex',          label: 'Reveal ~/.codex/',                   hint: 'Reveal in Finder',                     kind: 'Reveal' },
+  ]
+
+  const filtered = items.filter((it) =>
+    !query || it.label.toLowerCase().includes(query.toLowerCase()) || it.hint.toLowerCase().includes(query.toLowerCase()),
+  )
+
+  return (
+    <div className="hoist-modal-backdrop" onClick={onClose}>
+      <div className="hoist-palette" onClick={(e) => e.stopPropagation()}>
+        <div className="hoist-palette-input-row">
+        <Search className="hoist-palette-icon" size={14} />
+          <input
+            autoFocus
+            className="hoist-palette-input"
+            placeholder="Search actions, providers, gateways…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        <div className="hoist-palette-body">
+          {filtered.map((it) => (
+            <button
+              key={it.id}
+              className="hoist-palette-row"
+              onClick={() => {
+                if (it.id.startsWith('surface-')) onSelect(it.id.replace('surface-', '') as SurfaceId)
+                else onClose()
+              }}
+            >
+              <span className="hoist-palette-row-kind">{it.kind}</span>
+              <span className="hoist-palette-row-label">{it.label}</span>
+              <span className="hoist-palette-row-hint muted">{it.hint}</span>
+            </button>
+          ))}
+        </div>
+        <div className="hoist-palette-footer muted">
+          <span><span className="kbd">↑</span><span className="kbd">↓</span> navigate</span>
+          <span><span className="kbd">↵</span> run</span>
+          <span><span className="kbd">esc</span> close</span>
+        </div>
+      </div>
+    </div>
+  )
 }

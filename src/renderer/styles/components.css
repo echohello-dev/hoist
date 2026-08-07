@@ -1,0 +1,113 @@
+/* Hoist — Reusable component primitives
+ *
+ * Layered on top of `tokens.css`. Each component is a single class
+ * (`.btn`, `.card`, etc.) to keep the JSX clean.
+ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 80ms ease, border-color 80ms ease, color 80ms ease;
+}
+.btn:hover  { background: var(--surface-3); border-color: var(--border-strong); }
+.btn:active { background: var(--surface-4); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent);
+}
+.btn-primary:hover  { background: var(--accent-strong); border-color: var(--accent-strong); }
+.btn-primary:active { background: var(--accent); }
+
+.btn-pill {
+  border-radius: var(--radius-pill);
+  padding: 0 20px;
+  font-weight: 600;
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-muted);
+}
+.btn-ghost:hover { background: var(--surface-2); color: var(--text); }
+
+.btn-danger { color: var(--status-bad); }
+.btn-danger:hover { background: var(--status-bad-soft); border-color: var(--status-bad); }
+
+.btn-sm { height: 26px; padding: 0 10px; font-size: 12px; }
+.btn-lg { height: 38px; padding: 0 20px; font-size: 14px; }
+
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 16px;
+}
+
+.card-pad-lg { padding: 24px; }
+
+.input {
+  height: 32px;
+  width: 100%;
+  padding: 0 12px;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  font-family: inherit;
+  font-size: 13px;
+  font-feature-settings: inherit;
+  outline: none;
+}
+.input::placeholder { color: var(--text-subtle); }
+.input:hover  { border-color: var(--border-strong); }
+.input:focus  { border-color: var(--accent); background: var(--surface-1); }
+
+.input-lg { height: 38px; padding: 0 14px; font-size: 14px; }
+
+.muted { color: var(--text-muted); }
+.subtle { color: var(--text-subtle); }
+.mono  { font-family: var(--font-mono); font-size: 12px; }
+.kbd   { font-family: var(--font-mono); font-size: 11px;
+         background: var(--surface-2); border: 1px solid var(--border);
+         padding: 2px 5px; border-radius: var(--radius-tile); color: var(--text-muted); }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 18px;
+  padding: 0 7px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--text-muted);
+}
+.badge-ok   { background: rgba(45, 181, 93, 0.14); color: var(--status-ok); }
+.badge-warn { background: rgba(217, 122, 0, 0.14); color: var(--status-warn); }
+.badge-bad  { background: var(--status-bad-soft); color: var(--status-bad); }
+.badge-accent { background: var(--accent-soft); color: var(--accent); }
+
+.divider { height: 1px; background: var(--border); border: 0; margin: 0; }
+
+.icon {
+  width: 16px; height: 16px; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: currentColor;
+}
+.icon-lg { width: 20px; height: 20px; }

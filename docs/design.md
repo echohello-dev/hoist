@@ -29,6 +29,8 @@ Hoist's chrome borrows directly from:
 - **Raycast** — pure-near-black canvas, Inter with `ss03` stylistic set, command-palette-as-product. ([shadcn.io/design/raycast](https://www.shadcn.io/design/raycast))
 - **Claude Code `/config`** — tabbed settings interface, status overlay, esc-to-revert, `/config key=value` pattern. ([code.claude.com/docs/en/settings](https://code.claude.com/docs/en/settings))
 
+The Hoist designs (in `design.pen`) lay out **five shells** (Three-pane · Sidebar-only · Tabs · Harness grid · CLI-first) and pick the Three-pane as the recommended shell. They document **three real surfaces** (Library · Harness Detail · Install Wizard) with the Library as the canonical harness-management view. The document also defines a **six-component grammar** (install status filled · install status outlined · action buttons · ⌘K command bar · harness table · terminal output) and a **four-card spec** (where each shell wins · one color one state · six tokens three status additions · posture rules).
+
 What we **don't** borrow: Light themes (Hoist is dark-only for now), decorative gradients, sidebars that are themselves apps (cf. 1Password's sidebar-of-vaults is *the* model).
 
 ---
@@ -41,13 +43,23 @@ All values live in `src/renderer/styles/tokens.css`. Components consume them via
 
 ```
 --surface-canvas       #1d1d21   Page background
---surface-1            #26262c   Sidebar / right rail
---surface-2            #2f2f37   Cards / inputs / list rows
---surface-3            #393943   Hovered surface / list-row icon
---surface-4            #43434f   Selected row / focused control
+--surface-recessed     #0f0f12   Deeper than canvas (rail backdrop, terminal code block)
+--surface-1            #26262c   Sidebar / panel backgrounds
+--surface-2            #2f2f37   Elevated surface (hovered tile, input)
+--surface-3            #393943   Cards / list rows
+--surface-4            #43434f   Selected row / focused surface
 ```
 
-Dark-only. Depth comes from surface ladder, never from drop shadows. Every chrome element is hairline-bordered against the surface below.
+Dark-only. Depth comes from surface ladder, never from drop shadows. Every chrome element is hairline-bordered against the surface below. The `--surface-recessed` token is reserved for the icon-only nav rail and the terminal code block — surfaces that should feel "behind" the active canvas.
+
+### Rail + sidebar widths
+
+```
+--rail-width           56px      Icon-only nav rail (Library: 5 icons + ?)
+--sidebar-width         232px    Expanded sidebar w/ labels (extended state)
+```
+
+The Library surface uses the rail — a 56px column with a `H` vault mark, 5 nav icons (Harnesses · Keys · Gateway · Account · Settings), and a `?` help button at the bottom. The design system explicitly chose the rail over the sidebar for the Library because the harness list is the primary surface and the icons map 1:1 to it. The 232 px sidebar lives on the other surfaces (Provider keys, Gateway, Watchtower) where the sidebar doubles as a scope picker.
 
 ### Color
 
@@ -61,13 +73,26 @@ Dark-only. Depth comes from surface ladder, never from drop shadows. Every chrom
 --border               #34343a   Hairline
 --border-strong        #43434f
 
---status-ok            #2db55d
+/* Status — 5 colors mapped to the design's harness state vocabulary.
+   Mapping: installed → ok, installing → info, available → accent,
+            deprecated → merged, failed → bad. */
+--status-ok            #2da44e   installed
+--status-ok-soft       rgba(45,164,78,0.14)
+--status-info          #157bf3   installing (reuses accent)
+--status-info-soft     rgba(21,123,243,0.14)
+--status-accent        #3ec1f3   available (cyan)
+--status-accent-soft   rgba(62,193,243,0.14)
+--status-merged        #a371f7   deprecated / merged
+--status-merged-soft   rgba(163,113,247,0.14)
 --status-warn          #d97a00
---status-bad           #d93535
---status-bad-soft      rgba(217,53,53,0.12)
+--status-warn-soft     rgba(217,122,0,0.14)
+--status-bad            #cf222e   failed
+--status-bad-soft      rgba(207,34,46,0.14)
 ```
 
 Brand blue is used **only** for: primary CTAs (`+ Install`, `+ New key`, `Apply wiring`, `Re-probe all`), the selected row tint, and the active sidebar item. Nowhere else.
+
+The status palette is wider than the typical 3-color red/yellow/green — it's 5 statuses because harnesses have 5 lifecycle states (installed · installing · available · deprecated · failed). All status badges are **filled** (not outlined), matching the design's pills.
 
 ### Type
 
@@ -114,9 +139,13 @@ Lives in `src/renderer/styles/components.css`. Each class composes tokens only.
 | `.btn` | Button base | `.btn-primary` (brand blue pill), `.btn-ghost` (transparent), `.btn-danger` (red text), `.btn-pill`, `.btn-sm`, `.btn-lg` |
 | `.card` | Panel surface | `.card-pad-lg` |
 | `.input` | Text input | `.input-lg` |
-| `.badge` | Inline pill label | `.badge-ok`, `.badge-warn`, `.badge-bad`, `.badge-accent` |
+| `.badge` | Inline filled pill label | `.badge-ok`, `.badge-ok-faded`, `.badge-info`, `.badge-info-faded`, `.badge-accent`, `.badge-accent-faded`, `.badge-merged`, `.badge-merged-faded`, `.badge-warn`, `.badge-bad`, `.badge-bad-faded` |
 | `.kbd` | Keyboard chip in palette/buttons | — |
 | `.icon` | Inline SVG flex | `.icon-lg` |
+
+### Badge treatment
+
+**Filled**, not outlined. The design's `installed` badge is a solid green pill (`#2da44e` on white text), not a green outline. Use the `-faded` variant when the badge sits on a tinted background (`accent-soft`) so the color doesn't dominate.
 
 ### Iconography
 
@@ -146,41 +175,37 @@ No emoji, no box-drawing glyphs, no inline SVG icons. Lucide ships tree-shakeabl
 
 ## 4. App shell architecture
 
+The canonical shell is **Three-pane** (rail · list · main · inspector). The design's 5-shell comparison document (`design.pen` → "Layouts Lab → 01 Shells") reaches the same conclusion: *"Three-pane with rail, harness list, focused overview, and inspector — covers Hoist."*
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Topbar   ⚡ hoist  | HARNESSES    ⌘K Search…    Help  +Add │
-├──────────┬──────────────────────────────────────┬────────────┤
-│ Sidebar  │ Main pane                            │ Detail rail │
-│ ┌──────┐ │ ┌──────────────┐                     │             │
-│ │vault │ │ │ Surface title │  Primary action     │ Context-    │
-│ │      │ │ │               │                     │ aware        │
-│ │ items│ │ ├───────────────┤                     │ inspector    │
-│ │      │ │ │               │                     │             │
-│ │health│ │ │  List rows    │                     │             │
-│ │      │ │ │               │                     │             │
-│ └──────┘ │ └───────────────┘                     │             │
-│  Vault   │                                      │             │
-│  unlocked │                                      │             │
-└──────────┴──────────────────────────────────────┴────────────┘
+│ Topbar   ⚡ hoist  | App · Library · claude-code   ⌘K  +Add │
+├──────┬──────────────────────────────────────────┬──────────┤
+│ Rail │  List (filter pills, items)         │  Detail   │
+│ 56px │  280px                                │  Inspector│
+│      │  ┌───────┐                            │  280px   │
+│  5   │  │ Main  │                            │           │
+│ ico  │  │       │                            │           │
+│  + ? │  └───────┘                            │           │
+│      │  fills rest                            │           │
+└──────┴──────────────────────────────────────────┴──────────┘
 ```
 
-**3-pane grid**: `232px / 1fr / 320px`, with breakpoints for narrower viewports. Implemented in `src/renderer/styles/layout.css`.
+**3-pane grid**: `56px / 280px / 1fr / 280px` plus the topbar. Implemented in `src/renderer/styles/layout.css`. Other surfaces (Provider keys, Gateway, Watchtower) hide the rail and use the `232px` sidebar instead.
 
 ### Topbar
 
-- **Left**: brand mark + section title (e.g., `HARNESSES`)
+- **Left**: brand mark + section title (e.g., `HARNESSES`) — crumb format `App · Library · claude-code` for the Library surface
 - **Center**: palette trigger button — looks like a search input but is a button (clicking opens palette, `⌘K` keyboard shortcut opens palette too)
 - **Right**: Help ghost button + primary CTA (`+ Add key`)
 
-### Sidebar
+### Rail (Library default)
 
-Two sections, both grouped:
-- **Vault**: Harnesses, provider keys, gateway (each shows a count badge)
-- **Health**: Watchtower
+56 px icon-only nav with: `H` vault mark, Harnesses (`Zap`), Keys (`KeyRound`), Gateway (`Globe`), Account (`User`), Settings (`Settings`), spacer, `?` help. Selected item uses `accent-soft` background + accent text + inverted count badge.
 
-Each item has: icon (Lucide) + label + count badge. Selected item uses `accent-soft` background + accent text + inverted count badge.
+### Sidebar (other surfaces)
 
-Footer: Vault status pill (green dot = unlocked, see §10 for auto-lock) + version.
+232 px expanded sidebar with: vault mark + name, item groups (`VAULT` / `HEALTH`), items with icon + label + count badge. Footer: Vault status pill (green dot = unlocked) + version.
 
 ### Main pane
 
@@ -192,6 +217,7 @@ Each surface shares this layout:
 ### Detail rail
 
 Context-aware right pane:
+- **Library** → INSTALL (KV pairs), REINSTALL (terminal code block), HEALTH (4 KV pairs with green accent values)
 - **Harnesses** → binary path, provider, gateway, action buttons
 - **Provider keys** → env var, last-probe, action buttons
 - **Gateway** → which harnesses are wired + action buttons
@@ -201,11 +227,16 @@ Context-aware right pane:
 
 ## 5. Surfaces
 
-### 5.1 Harnesses
+### 5.1 Library (the chosen shell)
 
-**Purpose**: show installed state, surface install action.
+**Purpose**: harness-management view — list installed + available harnesses in one place, configure + open each one, see Install + Health + Reinstall in a right rail.
 
-**Layout**: list of harnesses (Claude Code, OpenCode, Codex). Each row: icon, title, description, version badge (`installed · v2.1.211` or `not installed`). Selected row shows the harness in the detail rail with binary, provider, gateway, and re-detect/update/uninstall actions.
+**Layout** (matches `design.pen → Hoist App — Library`):
+
+- **Rail (56 px)**: vault mark + 5 nav icons + `?` help
+- **List (280 px)**: title + count, search input, filter pills (`All / Installed / Available / Updates`), then 7 list rows (Claude Code · Codex CLI · Amp · Cursor · OpenCode · Aider · Cline). Each row: 2-letter avatar square, name, version, **filled** status badge (installed = green, installing = blue, available = cyan, failed = red, deprecated = purple)
+- **Main**: harness title + comma-separated model links, `Configure` (outlined) + `Open` (filled blue) buttons, description lede, "What you get" checklist with hyphen bullets
+- **Inspector (280 px)**: three stacked sections — INSTALL (KV pairs), REINSTALL (terminal code block), HEALTH (4 KV pairs)
 
 **Pattern**: list rows with right-rail context (1Password unlocked vault).
 
@@ -214,7 +245,7 @@ Context-aware right pane:
 **Purpose**: list of stored keys + scope picker + new-key flow.
 
 **Layout**:
-- `+ New key` primary CTA opens the **New Item catalogue** modal (1Password pattern)
+- `+ New key` primary CTA opens the **New Item catalogue** modal
 - Scope picker dropdown: "All providers" / "Anthropic" / "OpenAI"
 - List rows: provider glyph, name, kind badge (`API key` / `Cloud creds`), env var, masked preview, last-probe time
 
@@ -228,13 +259,13 @@ The New Item catalogue modal lists 6 credential kinds:
 - **AWS Bedrock** — profile + region
 - **Custom OpenAI endpoint** — OpenAI-compatible URL
 
-Each tile shows the kind icon (Lucide glyph), name, and monospace descriptor of required fields.
+Each tile shows the kind icon, name, and monospace descriptor of required fields.
 
 ### 5.3 Gateway
 
 **Purpose**: pick a gateway and apply wiring to all harnesses.
 
-**Layout**: searchable list of 10 gateways (Corporate, TrueFoundry, LiteLLM, Cloudflare, Vercel, OpenRouter, Together, OpenCode Zen, ZenLayer, custom). Each row: `Globe` icon, label, URL in monospace, native-provider list, env var. Placeholder warnings inline (`<your-org>` for Corporate).
+**Layout**: searchable list of 11 gateways (Corporate, TrueFoundry, LiteLLM, Cloudflare, Vercel, OpenRouter, Together, OpenCode Zen, ZenLayer, 2 custom). Each row: `Globe` icon, label, URL in monospace, native-provider list, env var. Placeholder warnings inline (`<your-org>` for Corporate).
 
 Right-rail: which harnesses are wired (`Claude Code ✓ env block`).
 
@@ -260,7 +291,22 @@ Right-rail: recent probes with status badges.
 
 ---
 
-## 6. Command palette (`⌘K` / `Ctrl+K`)
+## 6. Component grammar (the design system)
+
+The `design.pen → Layouts Lab → 03 Grammar` section defines 6 reusable component patterns. All should be reflected in the codebase.
+
+| Pattern | Where it lives |
+|---|---|
+| **Install status · filled** | Status badge in list row: `installed` (green) / `installing` (blue) / `available` (cyan) / `failed` (red) / `deprecated` (purple) |
+| **Install status · outlined** | Faded variants (`.badge-*-faded`) for use on tinted backgrounds |
+| **Action buttons** | `.btn-primary` (filled blue) for primary, `.btn-ghost` for secondary, `.btn-danger` for destructive |
+| **Input + ⌘K command bar** | Palette trigger button hiding inside the topbar |
+| **Harness table** | List rows with avatar + name + version + status badge — the core `.hoist-list-row` template |
+| **Terminal output** | Code block with `--surface-recessed` background, `font-mono`, dark variant of rail |
+
+---
+
+## 7. Command palette (`⌘K` / `Ctrl+K`)
 
 Centered modal at the top of the viewport. Search input at the top, results below, footer with `↑↓ navigate · ↵ run · esc close`.
 
@@ -290,25 +336,28 @@ Items registered today (13):
 
 `Surfacing actions` (anything that writes to the system) get the `ACTION` badge. `Gateway` actions set up the wiring layer. `NAVIGATE` actions switch surfaces. `REVEAL` actions open Finder.
 
-**Pattern**: cmdk / Raycast / 1Password Quick Access — focus stays in input, `aria-activedescendant` pattern (visual highlight via attribute, real focus on the input so the typed query doesn't get clobbered).
+**Pattern**: cmdk / Raycast / 1Password Quick Access — focus stays in input, `aria-activedescendant` pattern.
 
 ---
 
-## 7. Status indicators
+## 8. Status indicators
 
-Three colors, used surgically:
+The design's 5-color status palette maps to the harness lifecycle:
 
-| Color | Token | Used for |
+| State | Token | Used for |
 |---|---|---|
-| Green | `--status-ok` | Valid key · installed harness · wired gateway |
-| Orange | `--status-warn` | Expiring soon · placeholder URL · harness outdated |
-| Red | `--status-bad` | Invalid key · not installed |
+| `installed` | `--status-ok` (green `#2da44e`) | Valid key · installed harness |
+| `installing` | `--status-info` (blue `#157bf3`) | In-progress install |
+| `available` | `--status-accent` (cyan `#3ec1f3`) | Listed but not installed |
+| `deprecated` | `--status-merged` (purple `#a371f7`) | Older version, no longer recommended |
+| `failed` | `--status-bad` (red `#cf222e`) | Install / probe failure |
+| `warning` | `--status-warn` (orange `#d97a00`) | Expiring soon, placeholder URL |
 
 Status always appears as a small badge in a list-row meta column, never as a color-filled surface. Color is *evidence*, not decoration.
 
 ---
 
-## 8. Mocked vs real (today)
+## 9. Mocked vs real (today)
 
 PR #22 (this design) is **visual only**. Every button works as a state update, but no IPC channel is wired.
 
@@ -316,7 +365,7 @@ PR #22 (this design) is **visual only**. Every button works as a state update, b
 |---|---|---|
 | Harnesses | Hardcoded list with version | `harness.list` / `harness.discover` → live detection |
 | Provider keys | Hardcoded 4 entries | `vault.list` / `vault.set` / `vault.delete` / `vault.copy` |
-| Gateway | Hardcoded 10 entries | `gateway.list` / `gateway.apply` |
+| Gateway | Hardcoded 11 entries | `gateway.list` / `gateway.apply` |
 | Watchtower | Hardcoded stats | new `watchtower.summary` IPC + `probe.run` |
 | Right rails | Hardcoded fields | Per-surface IPC reads |
 | Palette | 13 items hardcoded | Read from a registry, group by category, recent-from-localStorage |
@@ -325,7 +374,7 @@ Wire each surface to its IPC in a separate PR so the visual + the data flow stay
 
 ---
 
-## 9. Adding to this design
+## 10. Adding to this design
 
 ### Add a provider
 
@@ -348,13 +397,13 @@ In `src/renderer/App.tsx`, append to `items` in `CommandPalette`. Pick a `kind` 
 
 ### Add a status color
 
-1. `src/renderer/styles/tokens.css` → add `--status-<name>`
-2. `.badge-<name>` in `components.css`
+1. `src/renderer/styles/tokens.css` → add `--status-<name>` + matching soft variant
+2. `.badge-<name>` in `components.css` (filled + `-faded` variants)
 3. Map it in the relevant surface
 
 ---
 
-## 10. Future directions
+## 11. Future directions
 
 These are open questions, not commitments:
 
@@ -364,10 +413,11 @@ These are open questions, not commitments:
 - **Multi-window support** — currently a single `BrowserWindow`. The IPC handler is already window-agnostic; the renderer would just need a per-window `App.tsx` state slice.
 - **Detail rail actions** — wire the buttons to actual IPC (Probe now → `probe.run`, Edit → opens a form, Delete → `vault.delete`).
 - **Settings panel** — surface-level settings (theme, auto-lock timeout, keytar backend toggle, GitHub repo for issue tracking) in a modal. Mirrors Claude Code's `/config` tabbed interface.
+- **The five shells** — `design.pen` lays out three-pane (chosen), sidebar-only, tabs, harness grid, CLI-first. We might want to build the harness-grid shell as an alternate "manager view" for power users who want to see all 7 harnesses in one screen rather than navigating into each.
 
 ---
 
-## 11. File map
+## 12. File map
 
 ```
 src/renderer/
@@ -402,7 +452,7 @@ docs/
 
 ---
 
-## 12. Verification checklist (for PR review)
+## 13. Verification checklist (for PR review)
 
 Every visual change should pass this:
 
@@ -410,14 +460,15 @@ Every visual change should pass this:
 - [ ] Icons are Lucide components with `size` and `strokeWidth`, never emoji or inline SVG
 - [ ] Buttons use `.btn` (with `.btn-primary` for primary actions), never raw `<button>` styling
 - [ ] Pills (`.btn-pill` + `.radius-pill`) only on primary CTAs — not on ghost/icon buttons
-- [ ] Status badges use `.badge-ok` / `.badge-warn` / `.badge-bad`, never raw color spans
+- [ ] Status badges are **filled** (matching the design's pills) and use `.badge-ok` / `.badge-info` / `.badge-accent` / `.badge-merged` / `.badge-warn` / `.badge-bad`
 - [ ] List rows use `.hoist-list-row` + `.hoist-list-row-icon` + `.hoist-list-row-meta`, not bespoke divs
 - [ ] Modal backdrop is `.hoist-modal-backdrop` + `.hoist-modal` (or `.hoist-modal-lg`)
 - [ ] Keyboard shortcut labels are `.kbd` chips
 - [ ] Surface title uses `.hoist-pane-title` + the surface header pattern (`<PaneHeader … />`)
 - [ ] If the change adds a status field, update the Watchtower tiles too
 - [ ] If the change adds an icon, pick from the Lucide mapping table (don't add a new package)
+- [ ] If the change adds a new state to the harness lifecycle, add the matching `--status-*` token + `.badge-*` variant rather than reusing an existing one
 
 ---
 
-*Last updated: 2026-08 — written alongside PR #22.*
+*Last updated: 2026-08 — written alongside PR #22, refreshed after the `design.pen` review.*

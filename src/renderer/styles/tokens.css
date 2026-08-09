@@ -7,11 +7,16 @@
 
 :root {
   /* Surface ladder */
-  --surface-canvas:        #1d1d21;   /* deep space — page background */
+  --surface-canvas:        #1d1d21;   /* page background */
+  --surface-recessed:      #0f0f12;   /* deeper than canvas — rail backdrop, terminal canvas */
   --surface-1:             #26262c;   /* sidebar / panel backgrounds */
   --surface-2:             #2f2f37;   /* elevated surface (hovered tile, input) */
   --surface-3:             #393943;   /* cards / list rows */
   --surface-4:             #43434f;   /* active row / focused surface */
+
+  /* Rail + sidebar widths */
+  --rail-width:            56px;      /* icon-only nav rail (Library, default) */
+  --sidebar-width:          232px;     /* expanded sidebar w/ labels (extended state) */
 
   /* Hairlines & dividers */
   --border:                #34343a;
@@ -29,11 +34,21 @@
   --accent-soft:           rgba(21, 123, 243, 0.14);
   --accent-strong:         #2f8af6;
 
-  /* Status (kept restrained, only used in Watchtower badges) */
-  --status-ok:             #2db55d;
+  /* Status — 5 colors mapped to the design's harness state vocabulary.
+     Mapping: installed → ok, installing → info, available → accent,
+              deprecated → merged, failed → bad. */
+  --status-ok:             #2da44e;   /* installed */
+  --status-ok-soft:        rgba(45, 164, 78, 0.14);
+  --status-info:           #157bf3;   /* installing — reuses accent */
+  --status-info-soft:      rgba(21, 123, 243, 0.14);
+  --status-accent:          #3ec1f3;   /* available — cyan */
+  --status-accent-soft:     rgba(62, 193, 243, 0.14);
+  --status-merged:         #a371f7;   /* deprecated / merged */
+  --status-merged-soft:    rgba(163, 113, 247, 0.14);
   --status-warn:           #d97a00;
-  --status-bad:            #d93535;
-  --status-bad-soft:        rgba(217, 53, 53, 0.12);
+  --status-warn-soft:      rgba(217, 122, 0, 0.14);
+  --status-bad:            #cf222e;   /* failed */
+  --status-bad-soft:        rgba(207, 34, 46, 0.14);
 
   /* Typography — Inter with the ss03 stylistic set */
   --font-sans:             'Inter', system-ui, -apple-system, BlinkMacSystemFont,

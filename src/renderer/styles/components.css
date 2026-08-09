@@ -86,6 +86,8 @@
          background: var(--surface-2); border: 1px solid var(--border);
          padding: 2px 5px; border-radius: var(--radius-tile); color: var(--text-muted); }
 
+/* Badge — filled treatment matches the design's harness-state pills.
+   Add \ variants for muted backgrounds. */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -98,10 +100,17 @@
   background: var(--surface-3);
   color: var(--text-muted);
 }
-.badge-ok   { background: rgba(45, 181, 93, 0.14); color: var(--status-ok); }
-.badge-warn { background: rgba(217, 122, 0, 0.14); color: var(--status-warn); }
-.badge-bad  { background: var(--status-bad-soft); color: var(--status-bad); }
-.badge-accent { background: var(--accent-soft); color: var(--accent); }
+.badge-ok        { background: var(--status-ok);           color: var(--text-on-accent); }
+.badge-ok-faded  { background: var(--status-ok-soft);      color: var(--status-ok); }
+.badge-info      { background: var(--status-info);         color: var(--text-on-accent); }
+.badge-info-faded { background: var(--status-info-soft);    color: var(--status-info); }
+.badge-accent    { background: var(--status-accent);       color: var(--surface-canvas); }
+.badge-accent-faded { background: var(--status-accent-soft); color: var(--status-accent); }
+.badge-merged    { background: var(--status-merged);       color: var(--text-on-accent); }
+.badge-merged-faded { background: var(--status-merged-soft); color: var(--status-merged); }
+.badge-warn      { background: var(--status-warn-soft);    color: var(--status-warn); }
+.badge-bad       { background: var(--status-bad);          color: var(--text-on-accent); }
+.badge-bad-faded { background: var(--status-bad-soft);     color: var(--status-bad); }
 
 .divider { height: 1px; background: var(--border); border: 0; margin: 0; }
 

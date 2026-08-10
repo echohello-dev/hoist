@@ -108,25 +108,55 @@ export interface InstallProgress {
   tool?: ToolInstallSpec
 }
 
+export interface InstallOptions {
+  /** Pin a specific version when the method supports it (npm package@version). */
+  version?: string
+  /** Prefer a specific install method type. */
+  prefer?: ToolInstallMethod['type']
+  /** Force reinstall / upgrade. */
+  force?: boolean
+}
+
 export async function installHarness(
   spec: ToolInstallSpec,
   onProgress?: (p: InstallProgress) => void,
+  opts: InstallOptions = {},
 ): Promise<InstalledTool> {
-  const method = spec.installMethods[0]
+  const method =
+    (opts.prefer ? spec.installMethods.find((m) => m.type === opts.prefer) : undefined)
+    ?? spec.installMethods[0]
   if (!method) throw new Error(`No install method defined for ${spec.id}`)
   onProgress?.({ phase: 'resolving', message: `Resolving ${method.type} install for ${spec.name}…`, tool: spec })
 
   if (method.type === 'npm') {
-    onProgress?.({ phase: 'spawning', message: `npm install -g ${method.package}`, tool: spec })
+    const pkg = opts.version ? `${method.package}@${opts.version}` : method.package
+    const args = ['install', '-g', pkg]
+    if (opts.force) args.push('--force')
+    onProgress?.({ phase: 'spawning', message: `npm install -g ${pkg}`, tool: spec })
     const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm'
-    const result = await run(npmBin, ['install', '-g', method.package], { timeout: 5 * 60 * 1000 })
+    const result = await run(npmBin, args, { timeout: 5 * 60 * 1000 })
     if (result.code !== 0) {
       onProgress?.({ phase: 'error', message: result.stderr.trim() || `npm exited ${result.code}`, tool: spec })
       throw new Error(`npm install failed: ${result.stderr.trim() || result.code}`)
     }
   } else if (method.type === 'brew') {
-    onProgress?.({ phase: 'spawning', message: `brew install ${method.formula}`, tool: spec })
-    const result = await run('brew', ['install', method.formula], { timeout: 5 * 60 * 1000 })
+    const token = method.formula
+    const caskProbe = await run('brew', ['info', '--json=v2', '--cask', token], { timeout: 15_000 }).catch(() => null)
+    const isCask = Boolean(caskProbe && caskProbe.code === 0 && /"token"\s*:/.test(caskProbe.stdout))
+    let brewArgs: string[]
+    if (opts.force) {
+      brewArgs = isCask ? ['reinstall', '--cask', token] : ['reinstall', token]
+    } else {
+      const listArgs = isCask ? ['list', '--cask', token] : ['list', token]
+      const listed = await run('brew', listArgs, { timeout: 15_000 }).catch(() => null)
+      if (listed && listed.code === 0) {
+        brewArgs = isCask ? ['upgrade', '--cask', token] : ['upgrade', token]
+      } else {
+        brewArgs = isCask ? ['install', '--cask', token] : ['install', token]
+      }
+    }
+    onProgress?.({ phase: 'spawning', message: `brew ${brewArgs.join(' ')}`, tool: spec })
+    const result = await run('brew', brewArgs, { timeout: 5 * 60 * 1000 })
     if (result.code !== 0) {
       onProgress?.({ phase: 'error', message: result.stderr.trim() || `brew exited ${result.code}`, tool: spec })
       throw new Error(`brew install failed: ${result.stderr.trim() || result.code}`)
@@ -137,6 +167,46 @@ export async function installHarness(
 
   onProgress?.({ phase: 'done', message: `Installed ${spec.name}`, tool: spec })
   return discoverInstalled(spec)
+}
+
+export interface UninstallOptions {
+  prefer?: ToolInstallMethod['type']
+}
+
+export async function uninstallHarness(
+  spec: ToolInstallSpec,
+  opts: UninstallOptions = {},
+): Promise<{ ok: boolean; message: string }> {
+  const methods = opts.prefer
+    ? spec.installMethods.filter((m) => m.type === opts.prefer)
+    : spec.installMethods
+
+  const errors: string[] = []
+  for (const method of methods) {
+    try {
+      if (method.type === 'npm') {
+        const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm'
+        const result = await run(npmBin, ['uninstall', '-g', method.package], { timeout: 3 * 60 * 1000 })
+        if (result.code === 0) {
+          return { ok: true, message: `Uninstalled ${method.package} via npm` }
+        }
+        errors.push(result.stderr.trim() || `npm uninstall exited ${result.code}`)
+      } else if (method.type === 'brew') {
+        const token = method.formula
+        const caskProbe = await run('brew', ['info', '--json=v2', '--cask', token], { timeout: 15_000 }).catch(() => null)
+        const isCask = Boolean(caskProbe && caskProbe.code === 0 && /"token"\s*:/.test(caskProbe.stdout))
+        const args = isCask ? ['uninstall', '--cask', token] : ['uninstall', token]
+        const result = await run('brew', args, { timeout: 3 * 60 * 1000 })
+        if (result.code === 0) {
+          return { ok: true, message: `Uninstalled ${token} via brew` }
+        }
+        errors.push(result.stderr.trim() || `brew uninstall exited ${result.code}`)
+      }
+    } catch (err) {
+      errors.push(err instanceof Error ? err.message : String(err))
+    }
+  }
+  return { ok: false, message: errors.join('; ') || 'No uninstall method succeeded' }
 }
 
 export async function discoverAll(specs: ToolInstallSpec[]): Promise<DiscoverResult[]> {

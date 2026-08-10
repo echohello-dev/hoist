@@ -5,10 +5,12 @@ import { maskSecret } from './secrets/backend'
 import type { SecretBackend } from './secrets/backend'
 import { runProbe } from './probes'
 import { libraryDiscover } from './library'
-import { discoverAll, installHarness } from './installer'
+import { discoverAll, installHarness, uninstallHarness } from './installer'
+import { changelogForRange, checkHarnessVersions } from './installer/versions'
 import { HARNESS_CATALOG, findHarness } from './providers/harnesses'
 import { PROVIDER_CATALOG, findProvider } from './providers/catalog'
 import { applyWiring } from './wiring'
+import { modelPresetsFor, resetHarnessConfig, setHarnessModel } from './wiring/configure'
 import { GATEWAY_CATALOG } from './gateways'
 import { selectAnthropicEndpoint, selectOpenAIEndpoint, unresolvedPlaceholders } from './gateways/resolve'
 import { CHANNELS } from '../shared/channels'
@@ -46,7 +48,9 @@ interface GatewayApplyRequest {
   gatewayId: string | null
   providerId: string
   baseUrl: string
-  apiKey: string
+  /** Plaintext key — prefer secretId so the renderer never holds the secret. */
+  apiKey?: string
+  secretId?: string
   harnessIds: string[]
   label?: string
 }
@@ -113,50 +117,112 @@ export function registerIpcHandlers(): void {
     }, {})
   })
 
-  ipcMain.handle(CHANNELS.harnessInstall, async (_evt, id: string) => {
-    const spec = findHarness(id)
+  ipcMain.handle(CHANNELS.harnessInstall, async (_evt, req: string | { id: string; version?: string; prefer?: 'npm' | 'brew'; force?: boolean }) => {
+    const id = typeof req === 'string' ? req : req.id
+    const catalogId = id.includes('#') ? id.split('#')[0] : id
+    const spec = findHarness(catalogId)
     if (!spec) return { ok: false as const, error: `Unknown harness "${id}"` }
     try {
-      const result = await installHarness(spec)
+      const opts = typeof req === 'string' ? {} : { version: req.version, prefer: req.prefer, force: req.force }
+      const result = await installHarness(spec, undefined, opts)
       return { ok: true as const, tool: result }
     } catch (err) {
       return { ok: false as const, error: errMsg(err) }
     }
   })
 
+  ipcMain.handle(CHANNELS.harnessUninstall, async (_evt, req: { id: string; prefer?: 'npm' | 'brew' }) => {
+    const catalogId = req.id.includes('#') ? req.id.split('#')[0] : req.id
+    const spec = findHarness(catalogId)
+    if (!spec) return { ok: false as const, error: `Unknown harness "${req.id}"` }
+    try {
+      return await uninstallHarness(spec, { prefer: req.prefer })
+    } catch (err) {
+      return { ok: false as const, message: errMsg(err) }
+    }
+  })
+
+  ipcMain.handle(CHANNELS.harnessVersions, async (_evt, req: { id: string; current?: string | null; from?: string | null; to?: string | null }) => {
+    const catalogId = req.id.includes('#') ? req.id.split('#')[0] : req.id
+    try {
+      const check = await checkHarnessVersions(catalogId, req.current ?? null)
+      if (req.from || req.to) {
+        check.changelog = await changelogForRange(catalogId, req.from ?? null, req.to ?? req.current ?? null)
+      }
+      return check
+    } catch (err) {
+      return {
+        ok: false as const,
+        error: errMsg(err),
+        harnessId: catalogId,
+        packageName: null,
+        current: req.current ?? null,
+        latest: null,
+        outdated: false,
+        versions: [],
+        changelog: [],
+        compareUrl: null,
+        homepage: null,
+      }
+    }
+  })
+
   ipcMain.handle(CHANNELS.harnessConfigShow, async (_evt, id: string) => {
-    const spec = findHarness(id)
+    const catalogId = id.includes('#') ? id.split('#')[0] : id
+    const spec = findHarness(catalogId)
     if (!spec) return { ok: false as const, error: `Unknown harness "${id}"`, harnessId: id, exists: false }
     const cfg =
-      id === 'claude-code'
+      catalogId === 'claude-code'
         ? { path: claudeCodeSettingsPath(), editor: 'jsonEnv' as const }
-        : id === 'codex'
+        : catalogId === 'codex'
           ? { path: codexConfigPath(), editor: 'toml' as const }
-          : id === 'opencode'
+          : catalogId === 'opencode'
             ? { path: openCodeConfigPath(), editor: 'jsonProvider' as const }
             : null
     if (!cfg) return { ok: false as const, harnessId: id, exists: false, error: 'No config editor for this harness' }
     let excerpt: string | undefined
     let exists = false
+    let activeModel: string | null = null
     try {
       const blob = await readFile(cfg.path, 'utf8')
       exists = true
       excerpt = blob.length > 1200 ? blob.slice(0, 1200) + '\n…' : blob
+      if (cfg.editor === 'jsonEnv' || cfg.editor === 'jsonProvider') {
+        try {
+          const j = JSON.parse(blob) as { model?: string }
+          activeModel = typeof j.model === 'string' ? j.model : null
+        } catch { /* ignore */ }
+      } else if (cfg.editor === 'toml') {
+        const m = blob.match(/^model\s*=\s*"?([^"\n]+)"?/m)
+        activeModel = m?.[1]?.trim() ?? null
+      }
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
     }
     return {
       ok: true as const,
-      harnessId: id,
+      harnessId: catalogId,
       path: cfg.path,
       exists,
       excerpt,
+      activeModel,
+      modelPresets: modelPresetsFor(catalogId),
       notes: [
-        cfg.editor === 'jsonEnv' ? 'Hoist writes the `env` block; your other settings are preserved.' : '',
-        cfg.editor === 'toml' ? 'Hoist writes a `[model_providers.<id>]` block; surrounding TOML is preserved.' : '',
-        cfg.editor === 'jsonProvider' ? 'Hoist writes a `provider.<id>` block; existing providers are preserved.' : '',
+        cfg.editor === 'jsonEnv' ? 'Hoist writes the `env` block and optional `model`; your other settings are preserved.' : '',
+        cfg.editor === 'toml' ? 'Hoist writes a `[model_providers.<id>]` block and `model =`; surrounding TOML is preserved.' : '',
+        cfg.editor === 'jsonProvider' ? 'Hoist writes a `provider.<id>` block and `model`; existing providers are preserved.' : '',
       ].filter(Boolean),
     }
+  })
+
+  ipcMain.handle(CHANNELS.harnessConfigSet, async (_evt, req: { harnessId: string; model?: string | null }) => {
+    const harnessId = req.harnessId.includes('#') ? req.harnessId.split('#')[0] : req.harnessId
+    return setHarnessModel({ harnessId, model: req.model })
+  })
+
+  ipcMain.handle(CHANNELS.harnessConfigReset, async (_evt, req: { harnessId: string; clearModel?: boolean }) => {
+    const harnessId = req.harnessId.includes('#') ? req.harnessId.split('#')[0] : req.harnessId
+    return resetHarnessConfig({ harnessId, clearModel: req.clearModel })
   })
 
   ipcMain.handle(CHANNELS.providerList, () => PROVIDER_CATALOG)
@@ -177,6 +243,15 @@ export function registerIpcHandlers(): void {
     if (!provider) {
       return { ok: false as const, error: `Unknown provider "${req.providerId}"` }
     }
+
+    let apiKey = req.apiKey
+    if (!apiKey && req.secretId) {
+      apiKey = (await getBackend().get(req.secretId)) ?? undefined
+    }
+    if (!apiKey) {
+      return { ok: false as const, error: 'No API key available. Save a key in Provider keys first, or pass apiKey.' }
+    }
+
     const gateway = req.gatewayId ? GATEWAY_CATALOG.find((g) => g.id === req.gatewayId) ?? null : null
 
     const effectiveBaseUrl = (() => {
@@ -191,12 +266,16 @@ export function registerIpcHandlers(): void {
       .map((id) => findHarness(id))
       .filter((h): h is NonNullable<typeof h> => !!h)
 
+    if (harnesses.length === 0) {
+      return { ok: false as const, error: 'Select at least one harness to wire.' }
+    }
+
     const wiring: { harnessId: string; harnessName: string; ok: boolean; error?: string; path?: string; note?: string; envHint?: Record<string, string> }[] = []
 
     for (const harness of harnesses) {
       try {
         const results = await applyWiring({
-          apiKey: req.apiKey,
+          apiKey,
           baseUrl: effectiveBaseUrl,
           harness,
           provider,
@@ -217,7 +296,13 @@ export function registerIpcHandlers(): void {
       }
     }
 
-    return { ok: true as const, wiring, effectiveBaseUrl }
+    const anyOk = wiring.some((w) => w.ok)
+    return {
+      ok: anyOk,
+      error: anyOk ? undefined : 'Wiring failed for all selected harnesses.',
+      wiring,
+      effectiveBaseUrl,
+    }
   })
 
   ipcMain.handle(CHANNELS.probeRun, async (_evt, req: ProbeRequest) => {

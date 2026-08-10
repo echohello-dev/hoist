@@ -13,8 +13,12 @@ const api: HoistAPI = {
   harness: {
     list: () => ipcRenderer.invoke(CHANNELS.harnessList),
     discover: () => ipcRenderer.invoke(CHANNELS.harnessDiscover),
-    install: (id) => ipcRenderer.invoke(CHANNELS.harnessInstall, id),
+    install: (req) => ipcRenderer.invoke(CHANNELS.harnessInstall, req),
+    uninstall: (req) => ipcRenderer.invoke(CHANNELS.harnessUninstall, req),
+    versions: (req) => ipcRenderer.invoke(CHANNELS.harnessVersions, req),
     configShow: (id) => ipcRenderer.invoke(CHANNELS.harnessConfigShow, id),
+    configSet: (req) => ipcRenderer.invoke(CHANNELS.harnessConfigSet, req),
+    configReset: (req) => ipcRenderer.invoke(CHANNELS.harnessConfigReset, req),
   },
   provider: {
     list: () => ipcRenderer.invoke(CHANNELS.providerList),

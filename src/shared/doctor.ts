@@ -6,11 +6,23 @@
 
 export type DoctorSeverity = 'error' | 'warn' | 'info' | 'ok'
 
+/** Machine-executable fix the Doctor UI can run (not just copy). */
+export type DoctorAction =
+  | { type: 'uninstall'; harnessId: string; prefer?: 'npm' | 'brew' }
+  | { type: 'install'; harnessId: string; prefer?: 'npm' | 'brew'; force?: boolean; version?: string }
+  | { type: 'upgrade'; harnessId: string; prefer?: 'npm' | 'brew' }
+  | { type: 'reconfigure'; harnessId: string }
+  | { type: 'navigate'; surface: 'library' | 'harnesses' | 'keys' | 'gateway' | 'doctor' | 'status' }
+
 export interface DoctorResolution {
   label: string
   /** Shell snippet the user can copy/run. */
   command?: string
   note?: string
+  /** If set, Doctor shows a Fix button that runs this action. */
+  action?: DoctorAction
+  /** Highlight as the recommended fix. */
+  primary?: boolean
 }
 
 export interface DoctorFinding {
@@ -78,49 +90,90 @@ function shellQuote(path: string): string {
   return `'${path.replace(/'/g, `'\\''`)}'`
 }
 
+/** Binary name used on PATH for a catalog id. */
+export function catalogBinaryName(catalogId: string): string {
+  switch (catalogId) {
+    case 'claude-code': return 'claude'
+    case 'codex': return 'codex'
+    case 'opencode': return 'opencode'
+    case 'python': return 'python3'
+    case 'pip': return 'pip3'
+    case 'rust': return 'rustc'
+    default: return catalogId
+  }
+}
+
+function isHarnessId(catalogId: string): boolean {
+  return catalogId === 'claude-code' || catalogId === 'opencode' || catalogId === 'codex'
+}
+
 function resolutionsForShadow(name: string, catalogId: string, installs: LibLike['installs']): DoctorResolution[] {
   const primary = installs.find((i) => i.primary) ?? installs[0]
   const others = installs.filter((i) => i !== primary)
   const res: DoctorResolution[] = []
+  const harness = isHarnessId(catalogId)
 
   res.push({
     label: `Keep PATH primary (${primary.source}${primary.version ? ` ${primary.version}` : ''})`,
-    note: `Bare \`${catalogId === 'claude-code' ? 'claude' : catalogId}\` currently resolves to ${primary.path}`,
+    note: `Bare \`${catalogBinaryName(catalogId)}\` resolves to ${primary.path}`,
+    primary: true,
+    action: harness ? { type: 'reconfigure', harnessId: catalogId } : undefined,
   })
+
+  if (harness) {
+    res.push({
+      label: 'Upgrade PATH winner to latest',
+      note: `Reinstall/upgrade the primary ${name} install via ${primary.homebrew ? 'Homebrew' : primary.packageManager === 'npm' || primary.homebrew === 'node' ? 'npm' : 'Homebrew'}.`,
+      action: {
+        type: 'upgrade',
+        harnessId: catalogId,
+        prefer: primary.homebrew ? 'brew' : 'npm',
+      },
+      primary: true,
+    })
+    res.push({
+      label: 'Reconfigure models & wiring',
+      note: 'Open Library configure for model selection and Hoist env reset.',
+      action: { type: 'reconfigure', harnessId: catalogId },
+    })
+  }
 
   for (const o of others) {
     if (o.homebrew === 'cask') {
       res.push({
         label: `Remove Homebrew Cask copy (${o.version ?? 'unknown'})`,
         command: `brew uninstall --cask ${catalogId === 'claude-code' ? 'claude-code' : catalogId}`,
+        action: harness ? { type: 'uninstall', harnessId: catalogId, prefer: 'brew' } : undefined,
       })
     } else if (o.homebrew === 'formula') {
       const formula = catalogId === 'node' ? 'node' : catalogId === 'python' ? 'python@3.14' : catalogId
       res.push({
         label: `Remove Homebrew formula copy (${o.version ?? 'unknown'})`,
         command: `brew uninstall ${formula}`,
+        action: harness ? { type: 'uninstall', harnessId: catalogId, prefer: 'brew' } : undefined,
       })
     } else if (o.source === 'asdf' || o.packageManager === 'asdf') {
       res.push({
         label: `Remove asdf shim / version (${o.version ?? 'unknown'})`,
         command: o.version
-          ? `asdf uninstall ${catalogId === 'claude-code' ? 'claude' : catalogId} ${o.version}`
-          : `asdf list ${catalogId === 'claude-code' ? 'claude' : catalogId}`,
-        note: 'Then run `asdf reshim` and open a new shell.',
+          ? `asdf uninstall ${catalogBinaryName(catalogId)} ${o.version}`
+          : `asdf list ${catalogBinaryName(catalogId)}`,
+        note: 'Then run `asdf reshim` and open a new shell. Hoist cannot drive asdf directly.',
       })
     } else if (o.packageManager === 'npm' || o.homebrew === 'node') {
       res.push({
-        label: `Remove npm global copy`,
+        label: 'Remove npm global copy',
         command: `npm uninstall -g ${catalogId === 'claude-code' ? '@anthropic-ai/claude-code' : catalogId === 'opencode' ? 'opencode-ai' : catalogId === 'codex' ? '@openai/codex' : catalogId}`,
+        action: harness ? { type: 'uninstall', harnessId: catalogId, prefer: 'npm' } : undefined,
       })
     } else if (o.packageManager === 'bun') {
       res.push({
-        label: `Remove Bun global copy`,
+        label: 'Remove Bun global copy',
         command: `bun remove -g ${catalogId}`,
       })
     } else {
       res.push({
-        label: `Move or rename non-primary binary`,
+        label: 'Inspect non-primary binary',
         command: `ls -la ${shellQuote(o.path)}`,
         note: `Consider removing ${o.path} from PATH or uninstalling via ${o.source}.`,
       })
@@ -165,16 +218,21 @@ export function analyzeLibrary(entries: LibLike[]): DoctorReport {
 
     if (installs.length > 1) {
       const versionSkew = versions.length > 1
+      const primary = installs.find((i) => i.primary) ?? installs[0]
+      // Multi-install is normal (asdf + brew, old + new). Surface as info/warn, not error.
+      // Warn only when a harness has version skew (shell may not run the version you think).
+      const severity: DoctorSeverity =
+        versionSkew && e.kind === 'harness' ? 'warn' : 'info'
       findings.push({
         id: `shadow:${e.catalogId}`,
-        severity: versionSkew ? 'error' : 'warn',
+        severity,
         category: versionSkew ? 'version-skew' : 'path-shadow',
         title: versionSkew
-          ? `${e.name} has ${installs.length} installs on different versions`
-          : `${e.name} is installed ${installs.length} times on PATH`,
+          ? `${e.name}: PATH picks ${primary.version ?? 'unknown'} (${installs.length} installs)`
+          : `${e.name}: ${installs.length} installs on PATH`,
         detail: versionSkew
-          ? `PATH primary is ${installs.find((i) => i.primary)?.version ?? 'unknown'} at ${installs.find((i) => i.primary)?.path ?? '—'}. Other copies: ${versions.filter((v) => v !== installs.find((i) => i.primary)?.version).join(', ')}. Shells may pick different binaries depending on PATH order.`
-          : `Multiple PATH hits resolve to different files (or shims). Primary: ${installs.find((i) => i.primary)?.path ?? '—'}.`,
+          ? `When you run the bare command, PATH resolves to ${primary.path} (${primary.version ?? 'unknown'}, ${primary.source}). Other versions present: ${versions.filter((v) => v !== primary.version).join(', ')}. This is informational unless you expected a different binary.`
+          : `Multiple PATH hits resolve to different files. Winner: ${primary.path}.`,
         catalogId: e.catalogId,
         kind: e.kind,
         installs: installs.map((i) => ({
@@ -191,10 +249,10 @@ export function analyzeLibrary(entries: LibLike[]): DoctorReport {
       if (channels.length > 1) {
         findings.push({
           id: `channel:${e.catalogId}`,
-          severity: 'warn',
+          severity: 'info',
           category: 'channel-mix',
-          title: `${e.name} mixes install channels`,
-          detail: `Found via: ${channels.join(', ')}. Pick one channel (usually Homebrew *or* asdf *or* npm) so upgrades stay coherent.`,
+          title: `${e.name} is installed via ${channels.length} channels`,
+          detail: `Channels: ${channels.join(', ')}. Common and fine if intentional (e.g. brew for default, asdf for project pins). Only clean up if upgrades feel inconsistent.`,
           catalogId: e.catalogId,
           kind: e.kind,
           installs: installs.map((i) => ({
@@ -207,15 +265,31 @@ export function analyzeLibrary(entries: LibLike[]): DoctorReport {
           })),
           resolutions: [
             {
-              label: 'Standardize on Homebrew (example)',
-              command: channels.some((c) => c.startsWith('Homebrew'))
-                ? '# keep brew copy, remove the others (see PATH shadow finding)'
-                : `brew install ${e.catalogId === 'claude-code' ? '--cask claude-code' : e.catalogId}`,
+              label: 'See PATH order',
+              command: `which -a ${catalogBinaryName(e.catalogId)}`,
             },
-            {
-              label: 'Or standardize on asdf',
-              note: 'Install via asdf plugin, then remove Homebrew/npm copies.',
-            },
+            ...(isHarnessId(e.catalogId)
+              ? [
+                  {
+                    label: 'Reconfigure in Library',
+                    action: { type: 'reconfigure' as const, harnessId: e.catalogId },
+                    primary: true,
+                  },
+                  {
+                    label: 'Upgrade PATH winner',
+                    action: {
+                      type: 'upgrade' as const,
+                      harnessId: e.catalogId,
+                      prefer: (installs.find((i) => i.primary)?.homebrew ? 'brew' : 'npm') as 'brew' | 'npm',
+                    },
+                  },
+                ]
+              : [
+                  {
+                    label: 'Optional: standardize on one channel',
+                    note: 'Keep the PATH winner; remove the other only if it confuses you.',
+                  },
+                ]),
           ],
         })
       }
@@ -253,59 +327,41 @@ export function analyzeLibrary(entries: LibLike[]): DoctorReport {
     })
   }
 
-  // Node multi-version without calling it out twice if shadow already exists
-  const node = byCatalog.get('node')
-  if (node && node.installs.length > 1 && !findings.some((f) => f.id === 'shadow:node')) {
-    findings.push({
-      id: 'node:versions',
-      severity: 'warn',
-      category: 'version-skew',
-      title: 'Multiple Node.js versions on PATH',
-      detail: `Versions: ${uniqVersions(node.installs).join(', ')}. Agent CLIs often bind to whichever node is first on PATH.`,
-      catalogId: 'node',
-      kind: 'runtime',
-      installs: node.installs.map((i) => ({
-        path: i.path,
-        version: i.version,
-        source: i.source,
-        primary: i.primary,
-        homebrew: i.homebrew,
-        packageManager: i.packageManager,
-      })),
-      resolutions: resolutionsForShadow('Node.js', 'node', node.installs),
-    })
-  }
-
-  // Missing recommended tools
-  for (const id of ['node', 'npm'] as const) {
+  // Missing recommended tools — only when truly absent
+  for (const id of ['node'] as const) {
     const e = byCatalog.get(id)
     if (!e || e.status !== 'installed') {
       findings.push({
         id: `missing:${id}`,
         severity: 'warn',
         category: 'missing',
-        title: `${id === 'node' ? 'Node.js' : 'npm'} is not available`,
+        title: 'Node.js is not available',
         detail: 'Most agent harnesses expect a working Node toolchain for global CLIs.',
         catalogId: id,
         resolutions: [
-          { label: 'Install via Homebrew', command: id === 'node' ? 'brew install node' : 'brew install node  # includes npm' },
+          { label: 'Install via Homebrew', command: 'brew install node' },
           { label: 'Or use asdf', command: 'asdf plugin add nodejs && asdf install nodejs latest' },
         ],
       })
     }
   }
 
-  // Healthy summary when few issues
+  // Healthy / calm summary — multi-install info alone is not "unhealthy"
   const problems = findings.filter((f) => f.severity === 'error' || f.severity === 'warn')
   if (problems.length === 0) {
     findings.unshift({
       id: 'healthy',
       severity: 'ok',
       category: 'healthy',
-      title: 'No install conflicts detected',
-      detail: 'Harnesses and runtimes look clean — single installs per tool, or matching versions.',
+      title: problems.length === 0 && findings.length > 0
+        ? 'No blocking issues'
+        : 'No install conflicts detected',
+      detail: findings.some((f) => f.severity === 'info')
+        ? 'You have multiple installs on PATH (common with Homebrew + asdf). PATH order decides the winner — check the PATH priority panel on each harness.'
+        : 'Harnesses and runtimes look clean — single installs per tool, or intentional multi-version setups.',
       resolutions: [
-        { label: 'Re-run discovery anytime', note: 'Open Library and click Refresh, or revisit Doctor after installing tools.' },
+        { label: 'Inspect PATH winners', command: 'which -a claude opencode codex node npm bun' },
+        { label: 'Re-run discovery anytime', note: 'Open Library → Refresh, or revisit Doctor after installing tools.' },
       ],
     })
   }

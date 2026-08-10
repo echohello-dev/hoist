@@ -21,6 +21,8 @@
     "prebuild": "npm run gen:catalog",
     "prebuild:renderer": "npm run gen:catalog",
     "catalog:check": "node scripts/check-catalog-stale.mjs",
+    "test": "npm run build:main && npm run test:unit",
+    "test:unit": "node scripts/test-extract-base-url.mjs && node scripts/test-doctor.mjs && node scripts/test-versions.mjs && node scripts/test-secrets.mjs && node scripts/test-homebrew.mjs",
     "test:extractor": "node scripts/test-extract-base-url.mjs",
     "package": "npm run build && electron-builder"
   },

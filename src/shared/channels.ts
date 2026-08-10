@@ -11,6 +11,10 @@ export const CHANNELS = {
   gatewayList: 'gateway:list',
   gatewayApply: 'gateway:apply',
   harnessConfigShow: 'harness:configShow',
+  harnessConfigSet: 'harness:configSet',
+  harnessConfigReset: 'harness:configReset',
+  harnessVersions: 'harness:versions',
+  harnessUninstall: 'harness:uninstall',
   clipboardRead: 'clipboard:read',
   libraryList: 'library:list',
 } as const

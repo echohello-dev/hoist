@@ -26,6 +26,7 @@ export const HARNESS_CATALOG: HarnessCatalogEntry[] = [
     ],
     status: 'installed',
     installMethods: [
+      { type: 'brew', formula: 'claude-code' },
       { type: 'npm', package: '@anthropic-ai/claude-code', binary: 'claude' },
     ],
   },
@@ -39,6 +40,7 @@ export const HARNESS_CATALOG: HarnessCatalogEntry[] = [
     status: 'installed',
     installMethods: [
       { type: 'npm', package: 'opencode-ai', binary: 'opencode' },
+      { type: 'brew', formula: 'opencode' },
     ],
   },
   {
@@ -50,6 +52,7 @@ export const HARNESS_CATALOG: HarnessCatalogEntry[] = [
     features: ['GPT-5.1 · v0.46.0'],
     status: 'installed',
     installMethods: [
+      { type: 'brew', formula: 'codex' },
       { type: 'npm', package: '@openai/codex', binary: 'codex' },
     ],
   },

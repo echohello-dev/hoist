@@ -63,6 +63,16 @@ interface HarnessCatalogEntry {
 export function App() {
   const [surface, setSurface] = useState<SurfaceId>('library')
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [library, setLibrary] = useState<LibraryEntry[]>([])
+
+  useEffect(() => {
+    let alive = true
+    window.hoist.library
+      .list()
+      .then((entries) => { if (alive) setLibrary(entries) })
+      .catch(() => { /* monotonic guard */ })
+    return () => { alive = false }
+  }, [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -102,7 +112,7 @@ export function App() {
           {surface === 'gateway' && <GatewaySurface />}
           {surface === 'status' && <StatusSurface />}
         </main>
-        <DetailRail surface={surface} />
+        <DetailRail surface={surface} library={library} />
       </div>
       {paletteOpen && (
         <CommandPalette
@@ -324,6 +334,19 @@ const LIBRARY_FILTERS: { id: LibraryFilter; label: string }[] = [
   { id: 'updates', label: 'Updates' },
 ]
 
+/**
+ * Normalize version strings. The discover result sometimes returns
+ * the harness name as a suffix (e.g. "2.1.211 (Claude Code)") — strip
+ * it so the row label stays compact and the right rail can show the
+ * bare version separately.
+ */
+function cleanVersion(v: string | null | undefined, name: string): string {
+  if (!v) return ''
+  const suffix = `(${name})`
+  if (v.endsWith(suffix)) return v.slice(0, -suffix.length).trim()
+  return v
+}
+
 function statusToBadgeClass(status: HarnessStatus): string {
   switch (status) {
     case 'installed':   return 'badge-ok'
@@ -415,7 +438,7 @@ function LibrarySurface() {
               <div className="hoist-library-row-body">
                 <div className="hoist-library-row-title">
                   <span>{h.name}</span>
-                  {h.version && <span className="hoist-library-ver">{h.version}</span>}
+                  {h.version && <span className="hoist-library-ver">{cleanVersion(h.version, h.name)}</span>}
                 </div>
                 <span className={`badge ${statusToBadgeClass(h.status)}`}>{statusLabel(h.status)}</span>
               </div>
@@ -460,22 +483,32 @@ function LibrarySurface() {
   )
 }
 
-function LibraryInspectionPanel() {
+function LibraryInspectionPanel({ entry }: { entry: LibraryEntry | undefined }) {
   const [cardOpen, setCardOpen] = useState(true)
+  if (!entry) {
+    return (
+      <aside className="hoist-rail">
+        <div className="hoist-rail-section">
+          <div className="hoist-rail-section-label muted">No harness selected.</div>
+        </div>
+      </aside>
+    )
+  }
+  const v = cleanVersion(entry.version, entry.name)
   return (
     <>
       <div className="hoist-rail-section">
         <button className="hoist-rail-section-collapse" onClick={() => setCardOpen((v) => !v)}>
-          <span className="hoist-rail-section-label">INSTALL</span>
+          <span className="hoist-rail-section-label">INSTALL · {entry.name}</span>
           <ChevronDown className="hoist-rail-section-caret" size={12} style={{ opacity: cardOpen ? 1 : 0.4, transform: cardOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 120ms ease" }} />
         </button>
         {cardOpen && (
           <div className="hoist-rail-kv">
-            <KV k="version" v="1.0.42" />
-            <KV k="path" v="~/.hoist/harnesses/claude-code" />
-            <KV k="binary" v="claude" />
-            <KV k="installed" v="3d ago" />
-            <KV k="last used" v="12m ago" />
+            <KV k="version" v={<span className="mono">{v}</span>} />
+            <KV k="path" v={<span className="mono">{entry.exec || "—"}</span>} />
+            <KV k="id" v={entry.id} />
+            <KV k="status" v={entry.status} />
+            <KV k="exec" v={<span className="mono">{entry.exec ? "on PATH" : "—"}</span>} />
           </div>
         )}
       </div>
@@ -766,8 +799,8 @@ function StatusSurface() {
   )
 }
 
-function DetailRail({ surface }: { surface: SurfaceId }) {
-  if (surface === 'library') return <LibraryInspectionPanel />
+function DetailRail({ surface, library }: { surface: SurfaceId; library: LibraryEntry[] }) {
+  if (surface === 'library') return <LibraryInspectionPanel entry={library[0]} />
   return (
     <aside className="hoist-rail">
       {surface === 'harnesses' && (

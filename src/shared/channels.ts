@@ -12,6 +12,7 @@ export const CHANNELS = {
   gatewayApply: 'gateway:apply',
   harnessConfigShow: 'harness:configShow',
   clipboardRead: 'clipboard:read',
+  libraryList: 'library:list',
 } as const
 
 export type ChannelName = (typeof CHANNELS)[keyof typeof CHANNELS]

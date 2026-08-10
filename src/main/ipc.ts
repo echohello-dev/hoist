@@ -102,6 +102,22 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(CHANNELS.harnessList, () => HARNESS_CATALOG)
 
+  ipcMain.handle(CHANNELS.libraryList, async () => {
+    const installed = await discoverAll(HARNESS_CATALOG)
+    return HARNESS_CATALOG.map((entry) => {
+      const found = installed.find((i) => i.spec.id === entry.id)
+      const status = found?.path
+        ? 'installed'
+        : (entry.status === 'installed' ? 'available' : entry.status)
+      return {
+        ...entry,
+        status,
+        exec: found?.path ?? null,
+        version: found?.version ?? null,
+      }
+    })
+  })
+
   ipcMain.handle(CHANNELS.harnessDiscover, async () => {
     const installed = await discoverAll(HARNESS_CATALOG)
     return installed.reduce<Record<string, InstalledTool>>((acc, item) => {

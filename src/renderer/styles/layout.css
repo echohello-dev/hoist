@@ -493,3 +493,376 @@
   border-top: 1px solid var(--border);
   font-size: 11px;
 }
+/* ─── Rail (Library surface) ─────────────────────────────────────── */
+
+.hoist-body.is-rail {
+  grid-template-columns: var(--rail-width) 1fr var(--sidebar-width);
+}
+
+.hoist-rail.hoist-rail {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-1);
+  border-right: 1px solid var(--border);
+  padding: 0;
+  min-height: 0;
+  width: var(--rail-width);
+}
+
+.hoist-rail-account {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 16px 0 12px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.hoist-rail-account .hoist-account-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-tile);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.hoist-rail-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 12px;
+  align-items: center;
+}
+
+.hoist-rail-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  width: 100%;
+}
+
+.hoist-rail-item {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-tile);
+  color: var(--text-muted);
+  cursor: pointer;
+  position: relative;
+}
+
+.hoist-rail-item:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.hoist-rail-item.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.hoist-rail-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hoist-rail-footer {
+  padding: 8px 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ─── Library surface (Library detail) ─────────────────────────── */
+
+.hoist-library {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas:
+    "header header"
+    "toolbar toolbar"
+    "list   main";
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+}
+
+.hoist-library .hoist-pane-header {
+  grid-area: header;
+}
+.hoist-library .hoist-pane-toolbar {
+  grid-area: toolbar;
+}
+
+.hoist-library-filters {
+  display: flex;
+  gap: 4px;
+  padding: 2px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+.hoist-library-filter {
+  height: 24px;
+  padding: 0 10px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-tile);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.hoist-library-filter:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.hoist-library-filter.is-active {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.hoist-library .hoist-list {
+  grid-area: list;
+  margin: 0 0 0 32px;
+  width: 280px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  height: fit-content;
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+}
+
+.hoist-library-row {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.hoist-library-row:last-child { border-bottom: none; }
+.hoist-library-row:hover { background: var(--surface-2); }
+.hoist-library-row.is-selected {
+  background: var(--accent-soft);
+  border-left: 2px solid var(--accent);
+  padding-left: 12px;
+}
+
+.hoist-library-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-tile);
+  background: var(--surface-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--text);
+}
+.hoist-library-row.is-selected .hoist-library-avatar {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.hoist-library-row-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.hoist-library-row-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hoist-library-ver {
+  font-size: 11px;
+  color: var(--text-subtle);
+  font-family: var(--font-mono);
+  font-weight: 400;
+}
+
+.hoist-library-main {
+  grid-area: main;
+  margin: 0 24px 0 24px;
+  padding: 24px 32px;
+  overflow-y: auto;
+}
+
+.hoist-library-main-name {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.hoist-library-main-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-tile);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 18px;
+  flex: 0 0 auto;
+}
+
+.hoist-library-main-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.hoist-library-main-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: var(--tracking-display);
+}
+
+.hoist-library-main-models {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.hoist-library-main-model {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-subtle);
+}
+
+.hoist-library-main-actions {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.hoist-library-main-desc {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-muted);
+  margin: 0 0 16px;
+}
+
+.hoist-library-main-features {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.hoist-library-main-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 12px;
+}
+
+.hoist-library-main-feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hoist-library-main-feature-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.hoist-library-main-bullet {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* ─── Library inspection KV (right rail) ───────────────────────── */
+
+.hoist-rail-section-collapse {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 0 0 8px;
+  margin: 0;
+  cursor: pointer;
+  color: inherit;
+}
+
+.hoist-rail-kv {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hoist-rail-kvrow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+}
+
+.hoist-rail-kvkey {
+  font-size: 11px;
+  color: var(--text-subtle);
+}
+
+.hoist-rail-kvval {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text);
+  text-align: right;
+}
+
+.hoist-terminal {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--surface-recessed);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-tile);
+  padding: 10px 12px;
+  color: var(--text-muted);
+  margin: 0;
+  overflow-x: auto;
+  white-space: pre;
+}

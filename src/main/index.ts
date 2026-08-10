@@ -6,11 +6,18 @@ let mainWindow: BrowserWindow | null = null
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1024,
-    height: 720,
-    minWidth: 720,
-    minHeight: 540,
+    width: 1280,
+    height: 800,
+    minWidth: 980,
+    minHeight: 600,
     title: 'Hoist',
+    // titleBarStyle: 'hiddenInset' removes the OS title bar but keeps
+    // the macOS traffic-light buttons; we draw our own titlebar in the
+    // renderer starting at 0,0, and the lights are placed at the
+    // leftmost position so the design system owns the chrome.
+    titleBarStyle: 'hiddenInset',
+    trafficLightPosition: { x: 12, y: 16 },
+    backgroundColor: '#1d1d21',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,

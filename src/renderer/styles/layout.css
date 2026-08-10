@@ -30,14 +30,18 @@
 
 .hoist-topbar {
   display: grid;
-  grid-template-columns: minmax(220px, 280px) 1fr auto;
+  grid-template-columns: 240px 1fr auto;
   align-items: center;
   gap: 16px;
-  padding: 0 12px;
+  padding: 0 16px 0 84px; /* left padding reserves room for macOS traffic lights */
   height: 44px;
   background: var(--surface-canvas);
   border-bottom: 1px solid var(--border);
   -webkit-app-region: drag;
+}
+.hoist-topbar button,
+.hoist-topbar input {
+  -webkit-app-region: no-drag;
 }
 
 .hoist-topbar-left {
@@ -152,6 +156,27 @@
 .hoist-sidebar-footer {
   padding: 10px 16px; border-top: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
+}
+
+/* ─── Right detail rail (3rd column) ─────────────────────────── */
+
+.hoist-rail.hoist-rail.hoist-rail-detail {
+  background: var(--surface-1);
+  border-left: 1px solid var(--border);
+  border-right: none;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  overflow-y: auto;
+  min-height: 0;
+  min-width: 0;
+  align-items: stretch;
+  /* Force the rail to fill its grid track. The .hoist-rail.hoist-rail rule below
+     sets width: var(--rail-width) = 56px (for the left rail) which we must
+     override here even though specificity should already match. !important
+     breaks the tie in case of future reorderings. */
+  width: auto !important;
+  grid-column: 3 / 4;
 }
 .hoist-status-pill {
   display: flex; align-items: center; gap: 6px;
@@ -507,6 +532,7 @@
   padding: 0;
   min-height: 0;
   width: var(--rail-width);
+  overflow-y: auto;
 }
 
 .hoist-rail-account {
@@ -540,6 +566,10 @@
   gap: 8px;
   padding: 0 12px;
   align-items: center;
+}
+.hoist-rail.hoist-rail.hoist-rail-detail .hoist-rail-section {
+  align-items: stretch;
+  padding: 12px 0;
 }
 
 .hoist-rail-group {
@@ -641,7 +671,7 @@
 .hoist-library .hoist-list {
   grid-area: list;
   margin: 0 0 0 32px;
-  width: 280px;
+  width: 380px;
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
@@ -653,9 +683,10 @@
 
 .hoist-library-row {
   display: grid;
-  grid-template-columns: 36px 1fr auto;
+  grid-template-columns: 36px 1fr;
   align-items: center;
-  gap: 12px;
+  column-gap: 12px;
+  row-gap: 4px;
   padding: 12px 14px;
   background: transparent;
   border: none;
@@ -673,15 +704,16 @@
 }
 
 .hoist-library-avatar {
-  width: 30px;
-  height: 30px;
+  grid-row: 1 / 3;
+  width: 32px;
+  height: 32px;
   border-radius: var(--radius-tile);
   background: var(--surface-3);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text);
 }
 .hoist-library-row.is-selected .hoist-library-avatar {
@@ -690,6 +722,8 @@
 }
 
 .hoist-library-row-body {
+  grid-column: 2;
+  grid-row: 1 / 3;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -699,10 +733,19 @@
 
 .hoist-library-row-title {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 8px;
   font-size: 13px;
   font-weight: 600;
+  min-width: 0;
+  width: 100%;
+}
+.hoist-library-row-title > span:first-child {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .hoist-library-ver {
@@ -710,6 +753,8 @@
   color: var(--text-subtle);
   font-family: var(--font-mono);
   font-weight: 400;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .hoist-library-main {
@@ -717,6 +762,7 @@
   margin: 0 24px 0 24px;
   padding: 24px 32px;
   overflow-y: auto;
+  max-width: 920px;
 }
 
 .hoist-library-main-name {
@@ -724,6 +770,7 @@
   align-items: center;
   gap: 16px;
   margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 
 .hoist-library-main-avatar {
@@ -743,6 +790,9 @@
 .hoist-library-main-meta {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .hoist-library-main-title {
@@ -755,8 +805,17 @@
 .hoist-library-main-models {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 6px;
+  gap: 4px 8px;
+  margin-top: 4px;
+}
+.hoist-library-main-model {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  background: var(--surface-2);
+  padding: 2px 8px;
+  border-radius: var(--radius-tile);
+  white-space: nowrap;
 }
 
 .hoist-library-main-model {
@@ -840,6 +899,7 @@
   justify-content: space-between;
   align-items: baseline;
   font-size: 12px;
+  gap: 12px;
 }
 
 .hoist-rail-kvkey {
@@ -852,6 +912,9 @@
   font-size: 11px;
   color: var(--text);
   text-align: right;
+  word-break: break-all;
+  min-width: 0;
+  flex: 0 1 60%;
 }
 
 .hoist-terminal {

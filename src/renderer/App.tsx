@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Zap,
   Search,
@@ -15,8 +15,15 @@ import {
   SquareTerminal,
   Circle,
   CircleHelp,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Stethoscope,
+  Copy,
+  AlertTriangle,
+  Activity,
 } from 'lucide-react'
 import type { HoistAPI, LibraryEntry } from '../preload/api'
+import { analyzeLibrary, type DoctorFinding } from '../shared/doctor'
 
 declare global {
   interface Window {
@@ -24,9 +31,9 @@ declare global {
   }
 }
 
-type SurfaceId = 'library' | 'harnesses' | 'keys' | 'gateway' | 'status'
+type SurfaceId = 'library' | 'harnesses' | 'keys' | 'gateway' | 'status' | 'doctor'
 type ScopeId = 'all' | 'anthropic' | 'openai'
-type LibraryFilter = 'all' | 'installed' | 'available' | 'updates'
+type LibraryFilter = 'all' | 'harnesses' | 'runtimes' | 'package-managers' | 'installed' | 'available'
 
 interface SidebarSection {
   id: SurfaceId
@@ -43,33 +50,91 @@ interface SidebarGroup {
 
 type HarnessStatus = 'installed' | 'installing' | 'available' | 'failed' | 'deprecated'
 
-interface HarnessCatalogEntry {
-  id: string
-  name: string
-  avatar: string
-  version: string | null
-  status: HarnessStatus
-  desc: string
-  models: string[]
-  features: string[]
-  exec: string | null
-  meta: {
-    binary: string
-    installed: string
-    lastUsed: string
+const WIDTH_KEYS = {
+  sidebar: 'hoist.width.sidebar',
+  detail: 'hoist.width.detail',
+} as const
+
+function readStoredWidth(key: string, fallback: number, min: number, max: number): number {
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return fallback
+    const n = Number(raw)
+    if (!Number.isFinite(n)) return fallback
+    return Math.min(max, Math.max(min, Math.round(n)))
+  } catch {
+    return fallback
   }
+}
+
+function useResizableWidth(key: string, initial: number, min: number, max: number) {
+  const [width, setWidth] = useState(() => readStoredWidth(key, initial, min, max))
+  const widthRef = useRef(width)
+  widthRef.current = width
+  const [dragging, setDragging] = useState(false)
+
+  useEffect(() => {
+    try { localStorage.setItem(key, String(width)) } catch { /* ignore */ }
+  }, [key, width])
+
+  /** dir: +1 grows when pointer moves right; -1 grows when pointer moves left */
+  const beginResize = useCallback((dir: 1 | -1) => (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const startX = e.clientX
+    const startW = widthRef.current
+    setDragging(true)
+    document.body.classList.add('is-col-resizing')
+
+    const onMove = (ev: MouseEvent) => {
+      const next = Math.min(max, Math.max(min, Math.round(startW + dir * (ev.clientX - startX))))
+      setWidth(next)
+    }
+    const onUp = () => {
+      setDragging(false)
+      document.body.classList.remove('is-col-resizing')
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [min, max])
+
+  return { width, dragging, beginResize }
 }
 
 export function App() {
   const [surface, setSurface] = useState<SurfaceId>('library')
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [library, setLibrary] = useState<LibraryEntry[]>([])
+  const [selectedLibraryId, setSelectedLibraryId] = useState<string>('claude-code')
+
+  const sidebar = useResizableWidth(WIDTH_KEYS.sidebar, 232, 180, 420)
+  const detail = useResizableWidth(WIDTH_KEYS.detail, 400, 320, 720)
+  const [navExpanded, setNavExpanded] = useState(() => {
+    try {
+      const v = localStorage.getItem('hoist.nav.expanded')
+      return v === null ? true : v === '1'
+    } catch {
+      return true
+    }
+  })
+
+  useEffect(() => {
+    try { localStorage.setItem('hoist.nav.expanded', navExpanded ? '1' : '0') } catch { /* ignore */ }
+  }, [navExpanded])
 
   useEffect(() => {
     let alive = true
     window.hoist.library
       .list()
-      .then((entries) => { if (alive) setLibrary(entries) })
+      .then((entries) => {
+        if (!alive) return
+        setLibrary(entries)
+        if (entries.length > 0 && !entries.some((e) => e.id === selectedLibraryId)) {
+          setSelectedLibraryId(entries[0].id)
+        }
+      })
       .catch(() => { /* monotonic guard */ })
     return () => { alive = false }
   }, [])
@@ -80,39 +145,83 @@ export function App() {
         e.preventDefault()
         setPaletteOpen(true)
       }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault()
+        setNavExpanded((v) => !v)
+      }
       if (e.key === 'Escape') setPaletteOpen(false)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const isRail = surface === 'library'
+  const selectedLibrary = library.find((h) => h.id === selectedLibraryId) ?? library[0]
+  const doctorReport = analyzeLibrary(library)
+  const doctorIssues = doctorReport.summary.error + doctorReport.summary.warn
+  const statusCounts = {
+    library: library.length || 7,
+    harnesses: 3,
+    keys: 4,
+    gateway: 1,
+    status: 2,
+    doctor: doctorIssues,
+  }
+
+  const shellStyle = {
+    ['--sidebar-width' as string]: `${sidebar.width}px`,
+    ['--detail-width' as string]: `${detail.width}px`,
+  }
 
   return (
-    <div className="hoist">
+    <div className="hoist" style={shellStyle}>
       <TopBar onOpenPalette={() => setPaletteOpen(true)} surface={surface} />
-      <div className={`hoist-body${isRail ? ' is-rail' : ''}`}>
-        {isRail ? (
-          <Rail
-            surface={surface}
-            onSurface={setSurface}
-            statusCounts={{ library: 7, harnesses: 3, keys: 4, gateway: 1, status: 2 }}
-          />
-        ) : (
-          <Sidebar
-            surface={surface}
-            onSurface={setSurface}
-            statusCounts={{ library: 7, harnesses: 3, keys: 4, gateway: 1, status: 2 }}
+      <div className={`hoist-body${navExpanded ? '' : ' is-rail'}`}>
+        <NavSidebar
+          surface={surface}
+          onSurface={setSurface}
+          statusCounts={statusCounts}
+          expanded={navExpanded}
+          onToggleExpand={() => setNavExpanded((v) => !v)}
+        />
+        {navExpanded && (
+          <button
+            type="button"
+            aria-label="Resize sidebar"
+            className={`hoist-resize hoist-resize-sidebar${sidebar.dragging ? ' is-active' : ''}`}
+            onMouseDown={sidebar.beginResize(1)}
           />
         )}
         <main className="hoist-main">
-          {surface === 'library' && <LibrarySurface />}
+          {surface === 'library' && (
+            <LibrarySurface
+              library={library}
+              selectedId={selectedLibraryId}
+              onSelect={setSelectedLibraryId}
+            />
+          )}
           {surface === 'harnesses' && <HarnessesSurface />}
           {surface === 'keys' && <KeysSurface />}
           {surface === 'gateway' && <GatewaySurface />}
           {surface === 'status' && <StatusSurface />}
+          {surface === 'doctor' && (
+            <DoctorSurface
+              report={doctorReport}
+              onOpenLibrary={(catalogId) => {
+                const hit = library.find((e) => e.catalogId === catalogId && e.primary)
+                  ?? library.find((e) => e.catalogId === catalogId)
+                if (hit) setSelectedLibraryId(hit.id)
+                setSurface('library')
+              }}
+            />
+          )}
         </main>
-        <DetailRail surface={surface} library={library} />
+        <button
+          type="button"
+          aria-label="Resize detail panel"
+          className={`hoist-resize hoist-resize-detail${detail.dragging ? ' is-active' : ''}`}
+          onMouseDown={detail.beginResize(-1)}
+        />
+        <DetailRail surface={surface} selectedLibrary={selectedLibrary} />
       </div>
       {paletteOpen && (
         <CommandPalette
@@ -132,6 +241,7 @@ function TopBar({ onOpenPalette, surface }: { onOpenPalette: () => void; surface
     : surface === 'harnesses' ? 'Harnesses'
     : surface === 'keys' ? 'Provider keys'
     : surface === 'gateway' ? 'Gateway'
+    : surface === 'doctor' ? 'Doctor'
     : 'Watchtower'
   return (
     <header className="hoist-topbar">
@@ -155,80 +265,98 @@ function TopBar({ onOpenPalette, surface }: { onOpenPalette: () => void; surface
   )
 }
 
-interface RailProps {
+interface NavSidebarProps {
   surface: SurfaceId
   onSurface: (s: SurfaceId) => void
   statusCounts: Record<SurfaceId, number>
+  expanded: boolean
+  onToggleExpand: () => void
 }
 
-function Rail({ surface, onSurface, statusCounts }: RailProps) {
-  const railItems: SidebarSection[] = [
-    { id: 'library',  label: 'Harnesses', icon: <Zap size={16} strokeWidth={2.25} />, count: statusCounts.library, active: surface === 'library' },
-    { id: 'keys',     label: 'Provider keys', icon: <KeyRound size={16} strokeWidth={2.25} />, count: statusCounts.keys, active: surface === 'keys' },
-    { id: 'gateway',  label: 'Gateway', icon: <Globe size={16} strokeWidth={2.25} />, count: statusCounts.gateway, active: surface === 'gateway' },
-  ]
-  return (
-    <aside className="hoist-rail">
-      <button className="hoist-rail-account">
-        <div className="hoist-account-mark">H</div>
-      </button>
-      <div className="hoist-rail-section">
-        <div className="hoist-rail-group">
-          {railItems.map((it) => (
-            <button
-              key={it.id}
-              onClick={() => onSurface(it.id)}
-              className={`hoist-rail-item${it.active ? ' is-active' : ''}`}
-              title={it.label}
-            >
-              <span className="hoist-rail-item-icon">{it.icon}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="hoist-rail-footer">
-        <button className="hoist-rail-item" title="Harnesses" onClick={() => onSurface('harnesses')}>
-          <span className="hoist-rail-item-icon"><Zap size={16} strokeWidth={2.25} /></span>
-        </button>
-        <button className="hoist-rail-item" title="Help">
-          <span className="hoist-rail-item-icon"><CircleHelp size={16} strokeWidth={2.25} /></span>
-        </button>
-      </div>
-    </aside>
-  )
-}
-
-interface SidebarProps extends RailProps {}
-
-function Sidebar(props: SidebarProps) {
-  const { surface, onSurface, statusCounts } = props
+function NavSidebar({ surface, onSurface, statusCounts, expanded, onToggleExpand }: NavSidebarProps) {
   const groups: SidebarGroup[] = [
     {
       label: 'Vault',
       items: [
-        { id: 'library', label: 'Library', icon: <Zap size={14} strokeWidth={2.25} />, count: statusCounts.library, active: surface === 'library' },
-        { id: 'harnesses', label: 'Harnesses', icon: <Zap size={14} strokeWidth={2.25} />, count: statusCounts.harnesses, active: surface === 'harnesses' },
-        { id: 'keys', label: 'Provider keys', icon: <KeyRound size={14} strokeWidth={2.25} />, count: statusCounts.keys, active: surface === 'keys' },
-        { id: 'gateway', label: 'Gateway', icon: <Globe size={14} strokeWidth={2.25} />, count: statusCounts.gateway, active: surface === 'gateway' },
+        { id: 'library', label: 'Library', icon: <Zap size={expanded ? 14 : 16} strokeWidth={2.25} />, count: statusCounts.library, active: surface === 'library' },
+        { id: 'harnesses', label: 'Harnesses', icon: <Terminal size={expanded ? 14 : 16} strokeWidth={2.25} />, count: statusCounts.harnesses, active: surface === 'harnesses' },
+        { id: 'keys', label: 'Provider keys', icon: <KeyRound size={expanded ? 14 : 16} strokeWidth={2.25} />, count: statusCounts.keys, active: surface === 'keys' },
+        { id: 'gateway', label: 'Gateway', icon: <Globe size={expanded ? 14 : 16} strokeWidth={2.25} />, count: statusCounts.gateway, active: surface === 'gateway' },
       ],
     },
     {
       label: 'Health',
       items: [
-        { id: 'status', label: 'Watchtower', icon: <ShieldCheck size={14} strokeWidth={2.25} />, count: statusCounts.status, active: surface === 'status' },
+        { id: 'status', label: 'Watchtower', icon: <ShieldCheck size={expanded ? 14 : 16} strokeWidth={2.25} />, count: statusCounts.status, active: surface === 'status' },
+        { id: 'doctor', label: 'Doctor', icon: <Stethoscope size={expanded ? 14 : 16} strokeWidth={2.25} />, count: statusCounts.doctor, active: surface === 'doctor' },
       ],
     },
   ]
-  return (
-    <aside className="hoist-sidebar">
-      <button className="hoist-sidebar-account">
-        <div className="hoist-account-mark">H</div>
-        <div className="hoist-account-meta">
-          <div className="hoist-account-name">hoist</div>
-          <div className="hoist-account-sub">Personal vault</div>
+
+  if (!expanded) {
+    return (
+      <aside className="hoist-rail" aria-label="Navigation">
+        <button type="button" className="hoist-rail-account" title="hoist · Personal vault">
+          <div className="hoist-account-mark">H</div>
+        </button>
+        <div className="hoist-rail-section">
+          {groups.map((g) => (
+            <div key={g.label} className="hoist-rail-group">
+              {g.items.map((it) => (
+                <button
+                  key={it.id}
+                  type="button"
+                  onClick={() => onSurface(it.id)}
+                  className={`hoist-rail-item${it.active ? ' is-active' : ''}`}
+                  title={it.label}
+                  aria-label={it.label}
+                  aria-current={it.active ? 'page' : undefined}
+                >
+                  <span className="hoist-rail-item-icon">{it.icon}</span>
+                </button>
+              ))}
+            </div>
+          ))}
         </div>
-        <ChevronDown className="hoist-account-caret" size={14} />
-      </button>
+        <div className="hoist-rail-footer">
+          <button
+            type="button"
+            className="hoist-rail-item"
+            title="Expand sidebar (⌘B)"
+            aria-label="Expand sidebar"
+            onClick={onToggleExpand}
+          >
+            <span className="hoist-rail-item-icon"><PanelLeftOpen size={16} strokeWidth={2.25} /></span>
+          </button>
+          <button type="button" className="hoist-rail-item" title="Help" aria-label="Help">
+            <span className="hoist-rail-item-icon"><CircleHelp size={16} strokeWidth={2.25} /></span>
+          </button>
+        </div>
+      </aside>
+    )
+  }
+
+  return (
+    <aside className="hoist-sidebar" aria-label="Navigation">
+      <div className="hoist-sidebar-top">
+        <button type="button" className="hoist-sidebar-account">
+          <div className="hoist-account-mark">H</div>
+          <div className="hoist-account-meta">
+            <div className="hoist-account-name">hoist</div>
+            <div className="hoist-account-sub">Personal vault</div>
+          </div>
+          <ChevronDown className="hoist-account-caret" size={14} />
+        </button>
+        <button
+          type="button"
+          className="hoist-sidebar-collapse"
+          title="Collapse sidebar (⌘B)"
+          aria-label="Collapse sidebar"
+          onClick={onToggleExpand}
+        >
+          <PanelLeftClose size={16} strokeWidth={2.25} />
+        </button>
+      </div>
       <div className="hoist-sidebar-section">
         {groups.map((g) => (
           <div key={g.label} className="hoist-sidebar-group">
@@ -236,8 +364,10 @@ function Sidebar(props: SidebarProps) {
             {g.items.map((it) => (
               <button
                 key={it.id}
+                type="button"
                 onClick={() => onSurface(it.id)}
                 className={`hoist-sidebar-item${it.active ? ' is-active' : ''}`}
+                aria-current={it.active ? 'page' : undefined}
               >
                 <span className="hoist-sidebar-item-icon">{it.icon}</span>
                 <span className="hoist-sidebar-item-label">{it.label}</span>
@@ -255,83 +385,13 @@ function Sidebar(props: SidebarProps) {
   )
 }
 
-const LIBRARY: HarnessCatalogEntry[] = [
-  {
-    id: 'claude-code', name: 'Claude Code', avatar: 'CC', version: '1.0.42',
-    status: 'installed',
-    desc: "Anthropic's agent harness for the terminal. Plans changes, edits files, runs commands, and reports back. Works on any codebase Claude can read.",
-    models: ['anthropic', 'opus-4', 'opus-4.1', 'sonnet-4'],
-    features: [
-      'Plan + edit + execute in one session',
-      'Inline diff review in the terminal',
-      'Permissions model per command type',
-      'Slash commands for repeated workflows',
-      'CLAUDE.md project context files',
-    ],
-    exec: '/usr/local/bin/claude',
-    meta: { binary: 'claude', installed: '3d ago', lastUsed: '12m ago' },
-  },
-  {
-    id: 'codex-cli', name: 'Codex CLI', avatar: 'CX', version: '0.46.0',
-    status: 'installed',
-    desc: "OpenAI's terminal coding agent. Background-safe via login shell sessions.",
-    models: ['openai'],
-    features: ['GPT-5.1 · v0.46.0'],
-    exec: '/usr/local/bin/codex',
-    meta: { binary: 'codex', installed: '1w ago', lastUsed: 'never' },
-  },
-  {
-    id: 'amp', name: 'Amp', avatar: 'A', version: '0.4.1',
-    status: 'installing',
-    desc: "Sourcegraph's multi-model agent. Cuts large refactors across one PR.",
-    models: ['anthropic', 'openai', 'gemini'],
-    features: ['Multi-model planning', 'Large refactor PRs'],
-    exec: null,
-    meta: { binary: 'amp', installed: 'downloading', lastUsed: 'never' },
-  },
-  {
-    id: 'cursor', name: 'Cursor', avatar: 'Cu', version: '—',
-    status: 'available',
-    desc: 'AI-first code editor. Brings its own agent loop — install if you want Hoist to manage it.',
-    models: ['openai', 'anthropic'],
-    features: ['VS Code fork + agent'],
-    exec: null,
-    meta: { binary: 'cursor', installed: 'not installed', lastUsed: 'never' },
-  },
-  {
-    id: 'opencode', name: 'OpenCode', avatar: 'OC', version: '0.3.7',
-    status: 'installed',
-    desc: 'Open-source AI coding agent with a TUI. Multi-provider, configuration-light.',
-    models: ['anthropic', 'openai', 'gemini'],
-    features: [],
-    exec: '/usr/local/bin/opencode',
-    meta: { binary: 'opencode', installed: '2w ago', lastUsed: '5h ago' },
-  },
-  {
-    id: 'aider', name: 'Aider', avatar: 'Ai', version: '0.72.1',
-    status: 'failed',
-    desc: 'AI pair programming in your terminal. Repo-map aware, multi-file edits.',
-    models: ['anthropic', 'openai'],
-    features: [],
-    exec: null,
-    meta: { binary: 'aider', installed: 'install failed', lastUsed: 'never' },
-  },
-  {
-    id: 'cline', name: 'Cline', avatar: 'Cl', version: '3.8',
-    status: 'deprecated',
-    desc: 'VS Code extension assistant. Older repo — superseded by Cline 4.0 fork.',
-    models: ['openai', 'anthropic'],
-    features: [],
-    exec: '/usr/local/bin/cline',
-    meta: { binary: 'cline', installed: 'v3.8', lastUsed: 'never' },
-  },
-]
-
 const LIBRARY_FILTERS: { id: LibraryFilter; label: string }[] = [
   { id: 'all', label: 'All' },
+  { id: 'harnesses', label: 'Harnesses' },
+  { id: 'runtimes', label: 'Runtimes' },
+  { id: 'package-managers', label: 'Pkg mgrs' },
   { id: 'installed', label: 'Installed' },
   { id: 'available', label: 'Available' },
-  { id: 'updates', label: 'Updates' },
 ]
 
 /**
@@ -367,44 +427,76 @@ function statusLabel(status: HarnessStatus): string {
   }
 }
 
-function LibrarySurface() {
-  const [library, setLibrary] = useState<LibraryEntry[]>([])
+function homebrewLabel(h: LibraryEntry['homebrew']): string | null {
+  if (h === 'formula') return 'Homebrew'
+  if (h === 'cask') return 'Homebrew Cask'
+  if (h === 'node') return 'Homebrew Node'
+  return null
+}
+
+/** Second line under a library row. */
+function rowSub(h: LibraryEntry): string {
+  const bits: string[] = []
+  const brew = homebrewLabel(h.homebrew)
+  if (brew) bits.push(brew)
+  else if (h.packageManager) bits.push(`via ${h.packageManager}`)
+  else if (h.source) bits.push(h.source)
+  if (h.homebrew === 'node') bits.push('via npm')
+  if (h.config.activeModel) bits.push(h.config.activeModel)
+  else if (h.path && h.installs.length > 1) bits.push(h.path)
+  else if (h.path && !brew && !h.packageManager) bits.push(h.path)
+  return bits.join(' · ')
+}
+
+function kindLabel(kind: LibraryEntry['kind']): string {
+  switch (kind) {
+    case 'harness': return 'Harness'
+    case 'runtime': return 'Runtime'
+    case 'package-manager': return 'Package manager'
+  }
+}
+
+function LibrarySurface({
+  library,
+  selectedId,
+  onSelect,
+}: {
+  library: LibraryEntry[]
+  selectedId: string
+  onSelect: (id: string) => void
+}) {
   const [filter, setFilter] = useState<LibraryFilter>('all')
-  const [selectedId, setSelectedId] = useState<string>('claude-code')
   const [search, setSearch] = useState('')
 
-  useEffect(() => {
-    let alive = true
-    window.hoist.library
-      .list()
-      .then((entries) => { if (alive) setLibrary(entries) })
-      .catch(() => { if (alive) setLibrary(LIBRARY) })
-    return () => { alive = false }
-  }, [])
-
-  const source = library.length > 0 ? library : (LIBRARY as unknown as LibraryEntry[])
-
-  const filtered = source.filter((h) => {
+  const filtered = library.filter((h) => {
+    if (filter === 'harnesses' && h.kind !== 'harness') return false
+    if (filter === 'runtimes' && h.kind !== 'runtime') return false
+    if (filter === 'package-managers' && h.kind !== 'package-manager') return false
     if (filter === 'installed' && h.status !== 'installed') return false
     if (filter === 'available' && h.status !== 'available') return false
-    if (filter === 'updates' && !(h.status === 'installed' || h.status === 'deprecated')) return false
     if (search) {
       const q = search.toLowerCase()
-      if (!h.name.toLowerCase().includes(q) && !h.id.includes(q)) return false
+      const hay = `${h.name} ${h.id} ${h.catalogId} ${h.source ?? ''} ${h.packageManager ?? ''} ${h.path ?? ''}`.toLowerCase()
+      if (!hay.includes(q)) return false
     }
     return true
   })
-  const selected = source.find((h) => h.id === selectedId) ?? source[0]
+  const selected = library.find((h) => h.id === selectedId) ?? library[0]
+  const hasSelection = Boolean(selected)
 
   return (
     <section className="hoist-pane hoist-library">
       <PaneHeader
         title="Library"
-        subtitle="Detected harnesses on this machine + catalog of available ones."
+        subtitle="Harnesses, runtimes, and package managers detected on this machine."
         primaryAction={
-          <button className="btn btn-primary btn-pill" disabled={selected.status === 'installed'}>
-            {selected.status === 'installed' ? 'Installed' : 'Install'}
-          </button>
+          hasSelection && selected.status === 'installed' ? (
+            <button type="button" className="btn btn-ghost btn-pill">Refresh</button>
+          ) : (
+            <button type="button" className="btn btn-primary btn-pill" disabled={!hasSelection}>
+              Install
+            </button>
+          )
         }
       />
       <div className="hoist-pane-toolbar">
@@ -412,6 +504,7 @@ function LibrarySurface() {
           {LIBRARY_FILTERS.map((f) => (
             <button
               key={f.id}
+              type="button"
               onClick={() => setFilter(f.id)}
               className={`hoist-library-filter${filter === f.id ? ' is-active' : ''}`}
             >
@@ -421,61 +514,43 @@ function LibrarySurface() {
         </div>
         <input
           className="input hoist-search"
-          placeholder="Filter harnesses…"
+          placeholder="Filter tools…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
       <div className="hoist-pane-body">
-        <div className="hoist-list">
-          {filtered.map((h) => (
-            <button
-              key={h.id}
-              onClick={() => setSelectedId(h.id)}
-              className={`hoist-library-row${selectedId === h.id ? ' is-selected' : ''}`}
-            >
-              <span className="hoist-library-avatar">{h.avatar}</span>
-              <div className="hoist-library-row-body">
-                <div className="hoist-library-row-title">
-                  <span>{h.name}</span>
-                  {h.version && <span className="hoist-library-ver">{cleanVersion(h.version, h.name)}</span>}
-                </div>
-                <span className={`badge ${statusToBadgeClass(h.status)}`}>{statusLabel(h.status)}</span>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="hoist-library-main">
-        <div className="hoist-library-main-name">
-          <span className="hoist-library-main-avatar">{selected.avatar}</span>
-          <div className="hoist-library-main-meta">
-            <h2 className="hoist-library-main-title">{selected.name}</h2>
-            <div className="hoist-library-main-models">
-              {selected.models.map((m) => (
-                <span key={m} className="hoist-library-main-model">{m}</span>
-              ))}
-            </div>
+        {filtered.length === 0 ? (
+          <div className="muted" style={{ padding: 8 }}>
+            {library.length === 0 ? 'Scanning PATH and config…' : 'No tools match this filter.'}
           </div>
-          <div className="hoist-library-main-actions">
-            <button className="btn btn-ghost btn-sm">Open</button>
-            <button className="btn btn-primary btn-sm btn-pill" disabled={selected.status === 'installed'}>
-              {selected.status === 'installed' ? 'Installed' : 'Configure'}
-            </button>
-          </div>
-        </div>
-        <p className="hoist-library-main-desc">{selected.desc}</p>
-        {selected.features.length > 0 && (
-          <div className="hoist-library-main-features">
-            <h3 className="hoist-library-main-section-label">What you get</h3>
-            <ul className="hoist-library-main-feature-list">
-              {selected.features.map((f) => (
-                <li key={f}>
-                  <span className="hoist-library-main-bullet">—</span>
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
+        ) : (
+          <div className="hoist-list">
+            {filtered.map((h) => (
+              <button
+                key={h.id}
+                type="button"
+                onClick={() => onSelect(h.id)}
+                className={`hoist-library-row${selectedId === h.id ? ' is-selected' : ''}${rowSub(h) ? ' has-sub' : ''}`}
+              >
+                <span className="hoist-library-avatar" aria-hidden>{h.avatar}</span>
+                <span className="hoist-library-row-name">
+                  {h.name}
+                  {h.installs.length > 1 && !h.primary && (
+                    <span className="hoist-library-row-dup"> · {h.source}</span>
+                  )}
+                </span>
+                {h.version && <span className="hoist-library-ver">{cleanVersion(h.version, h.name)}</span>}
+                <span className={`badge ${statusToBadgeClass(h.status)}`}>
+                  {h.status === 'installed' && h.installs.length > 1 && h.primary
+                    ? `${h.installs.length} installs`
+                    : statusLabel(h.status)}
+                </span>
+                {rowSub(h) && (
+                  <span className="hoist-library-row-sub muted mono">{rowSub(h)}</span>
+                )}
+              </button>
+            ))}
           </div>
         )}
       </div>
@@ -489,42 +564,152 @@ function LibraryInspectionPanel({ entry }: { entry: LibraryEntry | undefined }) 
     return (
       <aside className="hoist-rail hoist-rail-detail">
         <div className="hoist-rail-section">
-          <div className="hoist-rail-section-label muted">No harness selected.</div>
+          <div className="hoist-rail-section-label muted">Select a tool</div>
         </div>
       </aside>
     )
   }
   const v = cleanVersion(entry.version, entry.name)
+  const cfg = entry.config
+  const installable = entry.exec != null
   return (
     <aside className="hoist-rail hoist-rail-detail">
-      <div className="hoist-rail-section">
-        <button className="hoist-rail-section-collapse" onClick={() => setCardOpen((v) => !v)}>
-          <span className="hoist-rail-section-label">INSTALL · {entry.name}</span>
-          <ChevronDown className="hoist-rail-section-caret" size={12} style={{ opacity: cardOpen ? 1 : 0.4, transform: cardOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 120ms ease" }} />
-        </button>
-        {cardOpen && (
-          <div className="hoist-rail-kv">
-            <KV k="version" v={<span className="mono">{v}</span>} />
-            <KV k="path" v={<span className="mono">{entry.exec || "—"}</span>} />
-            <KV k="id" v={entry.id} />
-            <KV k="status" v={entry.status} />
-            <KV k="exec" v={<span className="mono">{entry.exec ? "on PATH" : "—"}</span>} />
+      <div className="hoist-rail-section hoist-rail-hero">
+        <div className="hoist-rail-hero-top">
+          <span className="hoist-rail-hero-avatar" aria-hidden>{entry.avatar}</span>
+          <div className="hoist-rail-hero-meta">
+            <div className="hoist-rail-hero-heading">
+              <h2 className="hoist-rail-hero-title">{entry.name}</h2>
+              <div className="hoist-rail-hero-actions">
+                {entry.status === 'installed' ? (
+                  <>
+                    <button type="button" className="btn btn-ghost btn-sm">Open</button>
+                    <button type="button" className="btn btn-ghost btn-sm">Configure</button>
+                  </>
+                ) : (
+                  <button type="button" className="btn btn-primary btn-sm btn-pill">Install</button>
+                )}
+              </div>
+            </div>
+            <div className="hoist-rail-hero-badges">
+              <span className={`badge ${statusToBadgeClass(entry.status)}`}>{statusLabel(entry.status)}</span>
+              <span className="badge">{kindLabel(entry.kind)}</span>
+              {entry.homebrew ? (
+                <span className="badge badge-ok-faded">{homebrewLabel(entry.homebrew)}</span>
+              ) : (
+                <span className="badge badge-merged-faded">not Homebrew</span>
+              )}
+              {entry.packageManager && entry.packageManager !== 'homebrew' && (
+                <span className="badge badge-info-faded">via {entry.packageManager}</span>
+              )}
+            </div>
+            {v && <div className="hoist-rail-hero-sub mono">{v}</div>}
+            {entry.source && (
+              <div className="hoist-rail-hero-sub">
+                {entry.source}{entry.primary ? ' · PATH primary' : ''}
+              </div>
+            )}
+          </div>
+        </div>
+        <p className="hoist-rail-hero-desc">{entry.desc}</p>
+        {cfg.activeModel && (
+          <div className="hoist-rail-hero-live">
+            <span className="hoist-rail-hero-live-label">Active model</span>
+            <span className="hoist-rail-hero-live-value mono">{cfg.activeModel}</span>
           </div>
         )}
       </div>
+
+      <div className="hoist-rail-section">
+        <button type="button" className="hoist-rail-section-collapse" onClick={() => setCardOpen((open) => !open)}>
+          <span className="hoist-rail-section-label">
+            {entry.installs.length > 1 ? `INSTALLS · ${entry.installs.length}` : 'INSTALL'}
+          </span>
+          <ChevronDown
+            className="hoist-rail-section-caret"
+            size={12}
+            style={{
+              opacity: cardOpen ? 1 : 0.4,
+              transform: cardOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 120ms ease',
+            }}
+          />
+        </button>
+        {cardOpen && (
+          <>
+            {entry.installs.length > 1 ? (
+              <ul className="hoist-rail-install-list">
+                {entry.installs.map((inst) => (
+                  <li
+                    key={inst.realPath}
+                    className={`hoist-rail-install-item${inst.path === entry.path ? ' is-current' : ''}`}
+                  >
+                    <div className="hoist-rail-install-head">
+                      <span className="hoist-rail-install-source">{inst.source}</span>
+                      {inst.primary && <span className="badge badge-info-faded">PATH</span>}
+                      {inst.homebrew ? (
+                        <span className="badge badge-ok-faded">{homebrewLabel(inst.homebrew)}</span>
+                      ) : (
+                        <span className="badge badge-merged-faded">not Homebrew</span>
+                      )}
+                      {inst.packageManager && inst.packageManager !== 'homebrew' && (
+                        <span className="badge badge-info-faded">{inst.packageManager}</span>
+                      )}
+                      {inst.version && <span className="hoist-rail-install-ver mono">{inst.version}</span>}
+                    </div>
+                    <div className="hoist-rail-install-path mono">{inst.path}</div>
+                    {inst.realPath !== inst.path && (
+                      <div className="hoist-rail-install-real mono muted">→ {inst.realPath}</div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="hoist-rail-kv">
+                <KV k="version" v={<span className="mono">{v || '—'}</span>} />
+                <KV k="path" v={<span className="mono">{entry.exec || '—'}</span>} />
+                <KV k="homebrew" v={homebrewLabel(entry.homebrew) ?? 'no'} />
+                <KV k="source" v={entry.source || '—'} />
+                <KV k="via" v={entry.packageManager || '—'} />
+                <KV k="kind" v={kindLabel(entry.kind)} />
+                <KV k="id" v={<span className="mono">{entry.catalogId}</span>} />
+                <KV k="status" v={entry.status} />
+                <KV k="exec" v={<span className="mono">{installable ? 'on PATH' : '—'}</span>} />
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {entry.kind === 'harness' && (
+      <div className="hoist-rail-section">
+        <div className="hoist-rail-section-label">CONFIG</div>
+        <div className="hoist-rail-kv">
+          <KV k="active model" v={<span className="mono">{cfg.activeModel || '—'}</span>} />
+          <KV k="provider" v={cfg.provider || '—'} />
+          <KV k="auth" v={<span className="mono">{cfg.authStatus || '—'}</span>} />
+          {cfg.installDir && <KV k="install dir" v={<span className="mono">{cfg.installDir}</span>} />}
+        </div>
+      </div>
+      )}
+
+      {entry.kind === 'harness' && cfg.models.length > 0 && (
+        <div className="hoist-rail-section">
+          <div className="hoist-rail-section-label">MODELS ({cfg.models.length})</div>
+          <ul className="hoist-rail-model-list">
+            {cfg.models.map((m) => (
+              <li key={m} className="hoist-rail-model-item">
+                <span className="hoist-rail-model-glyph">›</span>
+                <span className="hoist-rail-model-name">{m}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="hoist-rail-section">
         <div className="hoist-rail-section-label">REINSTALL</div>
-        <pre className="hoist-terminal">{`$ hoist install claude-code
-# latest 1.0.42 · sha 9af21c`}</pre>
-      </div>
-      <div className="hoist-rail-section">
-        <div className="hoist-rail-section-label">HEALTH</div>
-        <div className="hoist-rail-kv">
-          <KV k="binary on PATH" v={<span className="badge badge-ok">pass</span>} />
-          <KV k="auth" v={<span className="badge badge-ok">configured</span>} />
-          <KV k="MCP servers" v="2/2 reachable" />
-          <KV k="hooks" v="1 active" />
-        </div>
+        <pre className="hoist-terminal">{`$ hoist install ${entry.catalogId}${v ? `\n# latest ${v}` : ''}`}</pre>
       </div>
     </aside>
   )
@@ -642,29 +827,64 @@ function providerGlyph(id: string): React.ReactNode {
 }
 
 function ScopePicker({ value, onChange }: { value: ScopeId; onChange: (v: ScopeId) => void }) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
   const opts: { id: ScopeId; label: string }[] = [
     { id: 'all', label: 'All providers' },
     { id: 'anthropic', label: 'Anthropic' },
     { id: 'openai', label: 'OpenAI' },
   ]
+
+  useEffect(() => {
+    if (!open) return
+    const onPointer = (e: MouseEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('mousedown', onPointer)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('mousedown', onPointer)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
   return (
-    <div className="hoist-scope-picker">
-      <button className="hoist-scope-trigger">
-        <span className="hoist-scope-icon">▾</span>
+    <div className={`hoist-scope-picker${open ? ' is-open' : ''}`} ref={rootRef}>
+      <button
+        type="button"
+        className="hoist-scope-trigger"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <ChevronDown className="hoist-scope-icon" size={12} strokeWidth={2.5} />
         <span>{opts.find((o) => o.id === value)?.label}</span>
       </button>
-      <div className="hoist-scope-menu">
-        {opts.map((o) => (
-          <button
-            key={o.id}
-            className={`hoist-scope-item${o.id === value ? ' is-active' : ''}`}
-            onClick={() => onChange(o.id)}
-          >
-            {o.id === value && <Check className="hoist-scope-check" size={12} strokeWidth={2.5} />}
-            <span>{o.label}</span>
-          </button>
-        ))}
-      </div>
+      {open && (
+        <div className="hoist-scope-menu" role="listbox">
+          {opts.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              role="option"
+              aria-selected={o.id === value}
+              className={`hoist-scope-item${o.id === value ? ' is-active' : ''}`}
+              onClick={() => {
+                onChange(o.id)
+                setOpen(false)
+              }}
+            >
+              <span className="hoist-scope-check-slot">
+                {o.id === value && <Check className="hoist-scope-check" size={12} strokeWidth={2.5} />}
+              </span>
+              <span>{o.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -787,10 +1007,10 @@ function StatusSurface() {
       <div className="hoist-pane-body">
         <div className="hoist-stat-grid">
           {stats.map((s) => (
-            <button key={s.key} className="hoist-stat-card">
+            <button key={s.key} type="button" className={`hoist-stat-card is-${s.badge}`}>
               <div className="hoist-stat-value">{s.value}</div>
               <span className={`badge badge-${s.badge}`}>{s.label}</span>
-              <div className="hoist-stat-sub muted">{s.sub}</div>
+              <div className="hoist-stat-sub">{s.sub}</div>
             </button>
           ))}
         </div>
@@ -799,8 +1019,199 @@ function StatusSurface() {
   )
 }
 
-function DetailRail({ surface, library }: { surface: SurfaceId; library: LibraryEntry[] }) {
-  if (surface === 'library') return <LibraryInspectionPanel entry={library[0]} />
+function doctorSeverityBadge(severity: DoctorFinding['severity']): string {
+  switch (severity) {
+    case 'error': return 'badge-bad'
+    case 'warn': return 'badge-warn'
+    case 'info': return 'badge-info-faded'
+    case 'ok': return 'badge-ok'
+  }
+}
+
+function DoctorSurface({
+  report,
+  onOpenLibrary,
+}: {
+  report: ReturnType<typeof analyzeLibrary>
+  onOpenLibrary: (catalogId: string) => void
+}) {
+  const [openId, setOpenId] = useState<string | null>(report.findings[0]?.id ?? null)
+  const [copied, setCopied] = useState<string | null>(null)
+
+  const copy = async (text: string, id: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(id)
+      setTimeout(() => setCopied(null), 1500)
+    } catch {
+      // ignore
+    }
+  }
+
+  return (
+    <section className="hoist-pane hoist-doctor">
+      <PaneHeader
+        title="Doctor"
+        subtitle="PATH shadows, mixed install channels, and package-manager conflicts."
+        primaryAction={
+          <button type="button" className="btn btn-ghost btn-pill" onClick={() => window.location.reload()}>
+            Re-scan
+          </button>
+        }
+      />
+      <div className="hoist-pane-body">
+        <div className="hoist-doctor-summary">
+          <div className={`hoist-doctor-pill is-error${report.summary.error ? ' is-hot' : ''}`}>
+            <AlertTriangle size={14} strokeWidth={2.25} />
+            <span className="hoist-doctor-pill-n">{report.summary.error}</span>
+            <span>errors</span>
+          </div>
+          <div className={`hoist-doctor-pill is-warn${report.summary.warn ? ' is-hot' : ''}`}>
+            <Activity size={14} strokeWidth={2.25} />
+            <span className="hoist-doctor-pill-n">{report.summary.warn}</span>
+            <span>warnings</span>
+          </div>
+          <div className="hoist-doctor-pill is-info">
+            <span className="hoist-doctor-pill-n">{report.summary.info}</span>
+            <span>info</span>
+          </div>
+          <div className="hoist-doctor-pill is-ok">
+            <Check size={14} strokeWidth={2.5} />
+            <span className="hoist-doctor-pill-n">{report.summary.ok}</span>
+            <span>clear</span>
+          </div>
+        </div>
+
+        <div className="hoist-doctor-list">
+          {report.findings.map((f) => {
+            const open = openId === f.id
+            return (
+              <article key={f.id} className={`hoist-doctor-card is-${f.severity}${open ? ' is-open' : ''}`}>
+                <button
+                  type="button"
+                  className="hoist-doctor-card-head"
+                  onClick={() => setOpenId(open ? null : f.id)}
+                  aria-expanded={open}
+                >
+                  <span className={`badge ${doctorSeverityBadge(f.severity)}`}>{f.severity}</span>
+                  <span className="hoist-doctor-card-title">{f.title}</span>
+                  <ChevronDown
+                    size={14}
+                    className="hoist-doctor-card-caret"
+                    style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                  />
+                </button>
+                {open && (
+                  <div className="hoist-doctor-card-body">
+                    <p className="hoist-doctor-card-detail">{f.detail}</p>
+
+                    {f.installs && f.installs.length > 0 && (
+                      <div className="hoist-doctor-installs">
+                        <div className="hoist-doctor-section-label">Installs on PATH</div>
+                        <ul className="hoist-rail-install-list">
+                          {f.installs.map((inst) => (
+                            <li
+                              key={inst.path}
+                              className={`hoist-rail-install-item${inst.primary ? ' is-current' : ''}`}
+                            >
+                              <div className="hoist-rail-install-head">
+                                <span className="hoist-rail-install-source">{inst.source}</span>
+                                {inst.primary && <span className="badge badge-info-faded">PATH</span>}
+                                {inst.homebrew && (
+                                  <span className="badge badge-ok-faded">
+                                    {inst.homebrew === 'cask' ? 'Homebrew Cask' : inst.homebrew === 'node' ? 'Homebrew Node' : 'Homebrew'}
+                                  </span>
+                                )}
+                                {!inst.homebrew && (
+                                  <span className="badge badge-merged-faded">not Homebrew</span>
+                                )}
+                                {inst.version && (
+                                  <span className="hoist-rail-install-ver mono">{inst.version}</span>
+                                )}
+                              </div>
+                              <div className="hoist-rail-install-path mono">{inst.path}</div>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <div className="hoist-doctor-resolutions">
+                      <div className="hoist-doctor-section-label">Resolve</div>
+                      {f.resolutions.map((r, i) => {
+                        const cid = `${f.id}:res:${i}`
+                        return (
+                          <div key={cid} className="hoist-doctor-res">
+                            <div className="hoist-doctor-res-label">{r.label}</div>
+                            {r.note && <div className="hoist-doctor-res-note muted">{r.note}</div>}
+                            {r.command && (
+                              <div className="hoist-doctor-cmd">
+                                <pre className="hoist-terminal">{r.command}</pre>
+                                <button
+                                  type="button"
+                                  className="btn btn-ghost btn-sm"
+                                  onClick={() => copy(r.command!, cid)}
+                                  title="Copy command"
+                                >
+                                  {copied === cid ? <Check size={14} /> : <Copy size={14} />}
+                                  {copied === cid ? 'Copied' : 'Copy'}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {f.catalogId && (
+                      <div className="hoist-doctor-card-actions">
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => onOpenLibrary(f.catalogId!)}
+                        >
+                          Open in Library
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </article>
+            )
+          })}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function DetailRail({ surface, selectedLibrary }: { surface: SurfaceId; selectedLibrary: LibraryEntry | undefined }) {
+  if (surface === 'library') return <LibraryInspectionPanel entry={selectedLibrary} />
+  if (surface === 'doctor') {
+    return (
+      <aside className="hoist-rail hoist-rail-detail">
+        <div className="hoist-rail-section">
+          <div className="hoist-rail-section-label">Doctor</div>
+          <p className="hoist-rail-hero-desc" style={{ marginTop: 8 }}>
+            Findings come from live PATH discovery. Fix PATH shadows first — mixed channels and version skew usually clear once one install owns each tool.
+          </p>
+        </div>
+        <div className="hoist-rail-section">
+          <div className="hoist-rail-section-label">Checklist</div>
+          <ul className="hoist-rail-model-list">
+            <li className="hoist-rail-model-item"><span className="hoist-rail-model-glyph">1</span><span className="hoist-rail-model-name">One install per harness on PATH</span></li>
+            <li className="hoist-rail-model-item"><span className="hoist-rail-model-glyph">2</span><span className="hoist-rail-model-name">One channel (brew *or* asdf *or* npm)</span></li>
+            <li className="hoist-rail-model-item"><span className="hoist-rail-model-glyph">3</span><span className="hoist-rail-model-name">One JS package manager per project</span></li>
+            <li className="hoist-rail-model-item"><span className="hoist-rail-model-glyph">4</span><span className="hoist-rail-model-name">New shell after PATH changes</span></li>
+          </ul>
+        </div>
+        <div className="hoist-rail-section">
+          <div className="hoist-rail-section-label">Quick probes</div>
+          <pre className="hoist-terminal">{`which -a claude opencode codex node npm bun`}</pre>
+        </div>
+      </aside>
+    )
+  }
   return (
     <aside className="hoist-rail hoist-rail-detail">
       {surface === 'harnesses' && (
@@ -903,6 +1314,7 @@ function CommandPalette({ onClose, onSelect }: { onClose: () => void; onSelect: 
     { id: 'surface-keys',       label: 'Open Provider keys',  hint: 'New item catalogue',                   kind: 'Navigate' },
     { id: 'surface-gateway',    label: 'Open Gateway',        hint: '11 gateways · 18 providers',           kind: 'Navigate' },
     { id: 'surface-status',     label: 'Open Watchtower',     hint: 'Key health · last probe',              kind: 'Navigate' },
+    { id: 'surface-doctor',     label: 'Open Doctor',         hint: 'PATH conflicts · install channels',    kind: 'Navigate' },
     { id: 'open-claude-settings',label: 'Reveal ~/.claude/settings.json', hint: 'Reveal in Finder', kind: 'Reveal' },
     { id: 'open-opencode',      label: 'Reveal ~/.config/opencode/', hint: 'Reveal in Finder', kind: 'Reveal' },
     { id: 'open-codex',         label: 'Reveal ~/.codex/',     hint: 'Reveal in Finder',                     kind: 'Reveal' },

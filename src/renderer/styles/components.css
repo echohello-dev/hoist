@@ -4,19 +4,55 @@
  * (`.btn`, `.card`, etc.) to keep the JSX clean.
  */
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Optical vertical centering for control chrome */
+.btn,
+.badge,
+.input,
+.kbd,
+.hoist-scope-trigger,
+.hoist-library-filter,
+.hoist-sidebar-item-count,
+.hoist-sidebar-item,
+.hoist-rail-item,
+.hoist-list-row,
+.hoist-library-row {
+  line-height: 1;
+}
+
+.btn svg,
+.badge svg,
+.hoist-scope-trigger svg,
+.hoist-sidebar-item svg,
+.hoist-rail-item svg,
+.hoist-list-row-icon svg,
+.hoist-sidebar-collapse svg,
+.hoist-palette-trigger svg {
+  display: block;
+  flex-shrink: 0;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   height: 32px;
   padding: 0 14px;
   border-radius: var(--radius-control);
   border: 1px solid var(--border);
   background: var(--surface-2);
   color: var(--text);
+  font-family: inherit;
   font-size: 13px;
   font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
   transition: background 80ms ease, border-color 80ms ease, color 80ms ease;
 }
@@ -34,7 +70,7 @@
 
 .btn-pill {
   border-radius: var(--radius-pill);
-  padding: 0 20px;
+  padding: 0 16px;
   font-weight: 600;
 }
 
@@ -48,8 +84,18 @@
 .btn-danger { color: var(--status-bad); }
 .btn-danger:hover { background: var(--status-bad-soft); border-color: var(--status-bad); }
 
-.btn-sm { height: 26px; padding: 0 10px; font-size: 12px; }
-.btn-lg { height: 38px; padding: 0 20px; font-size: 14px; }
+.btn-sm {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  gap: 5px;
+}
+.btn-sm.btn-pill { padding: 0 12px; }
+.btn-lg {
+  height: 36px;
+  padding: 0 18px;
+  font-size: 14px;
+}
 
 .card {
   background: var(--surface-1);
@@ -61,6 +107,8 @@
 .card-pad-lg { padding: 24px; }
 
 .input {
+  display: inline-flex;
+  align-items: center;
   height: 32px;
   width: 100%;
   padding: 0 12px;
@@ -71,34 +119,52 @@
   font-family: inherit;
   font-size: 13px;
   font-feature-settings: inherit;
+  line-height: 1;
   outline: none;
 }
 .input::placeholder { color: var(--text-subtle); }
 .input:hover  { border-color: var(--border-strong); }
 .input:focus  { border-color: var(--accent); background: var(--surface-1); }
 
-.input-lg { height: 38px; padding: 0 14px; font-size: 14px; }
+.input-lg { height: 36px; padding: 0 14px; font-size: 14px; }
 
 .muted { color: var(--text-muted); }
 .subtle { color: var(--text-subtle); }
-.mono  { font-family: var(--font-mono); font-size: 12px; }
-.kbd   { font-family: var(--font-mono); font-size: 11px;
-         background: var(--surface-2); border: 1px solid var(--border);
-         padding: 2px 5px; border-radius: var(--radius-tile); color: var(--text-muted); }
+.mono  { font-family: var(--font-mono); font-size: 12px; line-height: 1.2; }
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 0 5px;
+  border-radius: var(--radius-tile);
+  color: var(--text-muted);
+}
 
-/* Badge — filled treatment matches the design's harness-state pills.
-   Add \ variants for muted backgrounds. */
+/* Badge — fixed height + line-height:1 keeps label optically centered */
 .badge {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
-  height: 18px;
-  padding: 0 7px;
+  height: 20px;
+  min-height: 20px;
+  padding: 0 8px;
   font-size: 11px;
   font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
   border-radius: var(--radius-pill);
   background: var(--surface-3);
   color: var(--text-muted);
+  vertical-align: middle;
+  flex: 0 0 auto;
 }
 .badge-ok        { background: var(--status-ok);           color: var(--text-on-accent); }
 .badge-ok-faded  { background: var(--status-ok-soft);      color: var(--status-ok); }
@@ -119,4 +185,5 @@
   display: inline-flex; align-items: center; justify-content: center;
   color: currentColor;
 }
+.icon svg { display: block; }
 .icon-lg { width: 20px; height: 20px; }

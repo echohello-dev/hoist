@@ -116,10 +116,10 @@ Inter loaded from `rsms.me/inter` (self-hosted); `ss03` stylistic set enabled si
 ### Shape
 
 ```
---radius-card    12px     List rows, modals, stat cards
---radius-control  8px      Buttons, inputs, list-row icons
---radius-tile     6px      Icon tiles, list-row check
---radius-pill     9999px    Primary CTAs (1Password pattern)
+--radius-card     6px      List rows, modals, stat cards, doctor cards
+--radius-control  6px      Buttons, inputs, sidebar items
+--radius-tile     4px      Avatars, icon tiles, chips
+--radius-pill     9999px    Badges + primary pill CTAs only
 ```
 
 Pill primary buttons + sharp cards is a deliberate tension — primary actions look "elevated" by their roundedness; everything else stays grounded.

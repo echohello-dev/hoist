@@ -4,6 +4,7 @@ import { createSafeStorageBackend } from './secrets/safestorage'
 import { maskSecret } from './secrets/backend'
 import type { SecretBackend } from './secrets/backend'
 import { runProbe } from './probes'
+import { libraryDiscover } from './library'
 import { discoverAll, installHarness } from './installer'
 import { HARNESS_CATALOG, findHarness } from './providers/harnesses'
 import { PROVIDER_CATALOG, findProvider } from './providers/catalog'
@@ -102,21 +103,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(CHANNELS.harnessList, () => HARNESS_CATALOG)
 
-  ipcMain.handle(CHANNELS.libraryList, async () => {
-    const installed = await discoverAll(HARNESS_CATALOG)
-    return HARNESS_CATALOG.map((entry) => {
-      const found = installed.find((i) => i.spec.id === entry.id)
-      const status = found?.path
-        ? 'installed'
-        : (entry.status === 'installed' ? 'available' : entry.status)
-      return {
-        ...entry,
-        status,
-        exec: found?.path ?? null,
-        version: found?.version ?? null,
-      }
-    })
-  })
+  ipcMain.handle(CHANNELS.libraryList, () => libraryDiscover())
 
   ipcMain.handle(CHANNELS.harnessDiscover, async () => {
     const installed = await discoverAll(HARNESS_CATALOG)

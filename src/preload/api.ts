@@ -35,16 +35,42 @@ export interface HoistAPI {
   }
 }
 
+export type LibraryKind = 'harness' | 'runtime' | 'package-manager'
+export type HomebrewChannel = 'formula' | 'cask' | 'node' | null
+
+export interface LibraryInstall {
+  path: string
+  realPath: string
+  version: string | null
+  source: string
+  packageManager: string | null
+  homebrew: HomebrewChannel
+  primary: boolean
+}
+
 export interface LibraryEntry {
   id: string
+  catalogId: string
+  kind: LibraryKind
   name: string
   avatar: string
   desc: string
-  models: string[]
-  features: string[]
   status: 'installed' | 'installing' | 'available' | 'failed' | 'deprecated'
   exec: string | null
   version: string | null
+  path: string | null
+  source: string | null
+  packageManager: string | null
+  homebrew: HomebrewChannel
+  primary: boolean
+  installs: LibraryInstall[]
+  config: {
+    activeModel: string | null
+    provider: string | null
+    authStatus: string | null
+    installDir: string | null
+    models: string[]
+  }
 }
 
 export interface ClipboardReadResponse {

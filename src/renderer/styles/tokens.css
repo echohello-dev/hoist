@@ -16,7 +16,8 @@
 
   /* Rail + sidebar widths */
   --rail-width:            56px;      /* icon-only nav rail (Library, default) */
-  --sidebar-width:          232px;     /* expanded sidebar w/ labels (extended state) */
+  --sidebar-width:         232px;     /* expanded left sidebar (resizable) */
+  --detail-width:          400px;     /* right inspector rail (resizable) */
 
   /* Hairlines & dividers */
   --border:                #34343a;
@@ -57,11 +58,11 @@
   --tracking-display:      -0.04em;
   --tracking-body:         -0.011em;
 
-  /* Shape */
-  --radius-card:           12px;
-  --radius-control:        8px;
-  --radius-pill:           9999px;
-  --radius-tile:           6px;
+  /* Shape — small, consistent radii (sharp Knox-like chrome) */
+  --radius-card:           6px;       /* lists, panels, modals, doctor cards */
+  --radius-control:        6px;       /* buttons, inputs, sidebar items */
+  --radius-tile:           4px;       /* avatars, chips, icon buttons */
+  --radius-pill:           9999px;    /* badges + primary pill CTAs only */
 
   /* Spacing */
   --space-1:               4px;

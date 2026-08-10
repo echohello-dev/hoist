@@ -22,7 +22,7 @@ jobs:
       - run: npm run catalog:check
       - run: npm run typecheck
       - run: npm run lint
-      - run: npm run test:extractor
+      - run: npm test
       - run: npm run build
 
   cli:

@@ -11,8 +11,12 @@ export interface HoistAPI {
   harness: {
     list: () => Promise<ToolInstallSpec[]>
     discover: () => Promise<Record<string, InstalledToolSummary>>
-    install: (id: string) => Promise<HarnessInstallResponse>
+    install: (req: string | { id: string; version?: string; prefer?: 'npm' | 'brew'; force?: boolean }) => Promise<HarnessInstallResponse>
+    uninstall: (req: { id: string; prefer?: 'npm' | 'brew' }) => Promise<{ ok: boolean; message: string }>
+    versions: (req: { id: string; current?: string | null; from?: string | null; to?: string | null }) => Promise<HarnessVersionCheck>
     configShow: (harnessId: string) => Promise<HarnessConfigView>
+    configSet: (req: { harnessId: string; model?: string | null }) => Promise<HarnessConfigMutationResult>
+    configReset: (req: { harnessId: string; clearModel?: boolean }) => Promise<HarnessConfigMutationResult>
   }
   provider: {
     list: () => Promise<ProviderSummary[]>
@@ -35,16 +39,42 @@ export interface HoistAPI {
   }
 }
 
+export type LibraryKind = 'harness' | 'runtime' | 'package-manager'
+export type HomebrewChannel = 'formula' | 'cask' | 'node' | null
+
+export interface LibraryInstall {
+  path: string
+  realPath: string
+  version: string | null
+  source: string
+  packageManager: string | null
+  homebrew: HomebrewChannel
+  primary: boolean
+}
+
 export interface LibraryEntry {
   id: string
+  catalogId: string
+  kind: LibraryKind
   name: string
   avatar: string
   desc: string
-  models: string[]
-  features: string[]
   status: 'installed' | 'installing' | 'available' | 'failed' | 'deprecated'
   exec: string | null
   version: string | null
+  path: string | null
+  source: string | null
+  packageManager: string | null
+  homebrew: HomebrewChannel
+  primary: boolean
+  installs: LibraryInstall[]
+  config: {
+    activeModel: string | null
+    provider: string | null
+    authStatus: string | null
+    installDir: string | null
+    models: string[]
+  }
 }
 
 export interface ClipboardReadResponse {
@@ -106,9 +136,45 @@ export interface HarnessConfigView {
   exists: boolean
   /** Excerpt of the current config relevant to hoist's wiring. */
   excerpt?: string
+  /** Active model currently written in the harness config file. */
+  activeModel?: string | null
+  /** Suggested model ids for the configure UI. */
+  modelPresets?: string[]
   /** Computed env vars hoist will write. */
   envHint?: Record<string, string>
   notes?: string[]
+}
+
+export interface HarnessConfigMutationResult {
+  ok: boolean
+  error?: string
+  path?: string
+  note?: string
+}
+
+export interface HarnessVersionInfo {
+  version: string
+  publishedAt?: string
+  latest?: boolean
+}
+
+export interface HarnessChangelogEntry {
+  version: string
+  body: string
+}
+
+export interface HarnessVersionCheck {
+  ok: boolean
+  error?: string
+  harnessId: string
+  packageName: string | null
+  current: string | null
+  latest: string | null
+  outdated: boolean
+  versions: HarnessVersionInfo[]
+  changelog: HarnessChangelogEntry[]
+  compareUrl: string | null
+  homepage: string | null
 }
 
 export interface ProviderSummary {
@@ -141,8 +207,10 @@ export interface GatewayApplyRequest {
   providerId: string
   /** Resolved gateway base URL (placeholders filled). */
   baseUrl: string
-  /** Resolved API key to inject into harnesses. */
-  apiKey: string
+  /** Plaintext key — prefer secretId so the renderer never holds the secret. */
+  apiKey?: string
+  /** Vault secret id (e.g. provider:anthropic:api_key). Resolved in main. */
+  secretId?: string
   /** Harness ids to apply to (e.g. ["claude-code","codex","opencode"]). */
   harnessIds: string[]
   /** Display label for the config record. */

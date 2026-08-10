@@ -487,7 +487,7 @@ function LibraryInspectionPanel({ entry }: { entry: LibraryEntry | undefined }) 
   const [cardOpen, setCardOpen] = useState(true)
   if (!entry) {
     return (
-      <aside className="hoist-rail">
+      <aside className="hoist-rail hoist-rail-detail">
         <div className="hoist-rail-section">
           <div className="hoist-rail-section-label muted">No harness selected.</div>
         </div>
@@ -496,7 +496,7 @@ function LibraryInspectionPanel({ entry }: { entry: LibraryEntry | undefined }) 
   }
   const v = cleanVersion(entry.version, entry.name)
   return (
-    <>
+    <aside className="hoist-rail hoist-rail-detail">
       <div className="hoist-rail-section">
         <button className="hoist-rail-section-collapse" onClick={() => setCardOpen((v) => !v)}>
           <span className="hoist-rail-section-label">INSTALL · {entry.name}</span>
@@ -526,7 +526,7 @@ function LibraryInspectionPanel({ entry }: { entry: LibraryEntry | undefined }) 
           <KV k="hooks" v="1 active" />
         </div>
       </div>
-    </>
+    </aside>
   )
 }
 
@@ -802,7 +802,7 @@ function StatusSurface() {
 function DetailRail({ surface, library }: { surface: SurfaceId; library: LibraryEntry[] }) {
   if (surface === 'library') return <LibraryInspectionPanel entry={library[0]} />
   return (
-    <aside className="hoist-rail">
+    <aside className="hoist-rail hoist-rail-detail">
       {surface === 'harnesses' && (
         <>
           <div className="hoist-rail-section">

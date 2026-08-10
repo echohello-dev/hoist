@@ -29,6 +29,9 @@ const api: HoistAPI = {
   clipboard: {
     read: () => ipcRenderer.invoke(CHANNELS.clipboardRead),
   },
+  library: {
+    list: () => ipcRenderer.invoke(CHANNELS.libraryList),
+  },
 }
 
 contextBridge.exposeInMainWorld('hoist', api)

@@ -29,6 +29,22 @@ export interface HoistAPI {
      *  the main process never invokes this opportunistically. */
     read: () => Promise<ClipboardReadResponse>
   }
+  library: {
+    /** Returns the catalog of harnesses with `discover()`-resolved status fields. */
+    list: () => Promise<LibraryEntry[]>
+  }
+}
+
+export interface LibraryEntry {
+  id: string
+  name: string
+  avatar: string
+  desc: string
+  models: string[]
+  features: string[]
+  status: 'installed' | 'installing' | 'available' | 'failed' | 'deprecated'
+  exec: string | null
+  version: string | null
 }
 
 export interface ClipboardReadResponse {

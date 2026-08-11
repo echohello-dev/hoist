@@ -24,7 +24,7 @@ import {
   unresolvedPlaceholders,
   type ProviderEntry,
 } from './lib/providers'
-import { probeAnthropic } from './lib/probes'
+import { probeProvider } from './lib/probes'
 import { applyWiring, type WireResult } from './lib/wiring'
 
 const VERSION = '0.0.0-dev'
@@ -35,7 +35,11 @@ program.name('hoist').description('Install agent harnesses. Manage your keys. Wi
 program
   .command('install [harness]')
   .description('Install an agent harness (claude-code, opencode, codex). Omit to list discovered harnesses.')
-  .action(async (id?: string) => {
+  .option('--npm', 'Prefer npm global install')
+  .option('--brew', 'Prefer Homebrew install')
+  .option('--version <ver>', 'Pin a version (npm package@version when using npm)')
+  .option('--force', 'Force reinstall / upgrade')
+  .action(async (id?: string, opts?: { npm?: boolean; brew?: boolean; version?: string; force?: boolean }) => {
     if (!id) {
       const all = await discoverAll()
       for (const h of all) {
@@ -49,10 +53,11 @@ program
       p.cancel(`Unknown harness: ${id}`)
       process.exit(1)
     }
+    const prefer = opts?.brew ? 'brew' as const : opts?.npm ? 'npm' as const : undefined
     const s = p.spinner()
     s.start(`Installing ${spec.name}…`)
     try {
-      const result = await installHarness(spec)
+      const result = await installHarness(spec, { prefer, version: opts?.version, force: opts?.force })
       s.stop(`Installed ${spec.name}${result.version ? ` · ${result.version}` : ''}`)
     } catch (err) {
       s.stop(`Failed: ${errMsg(err)}`)
@@ -115,15 +120,7 @@ program
       }
       const s = p.spinner()
       s.start(`Probing ${provider.label}…`)
-      const result =
-        provider.probeKind === 'anthropicModels'
-          ? await probeAnthropic({ apiKey: value, baseUrl: provider.defaultBaseUrl ?? 'https://api.anthropic.com' })
-          : {
-              valid: false,
-              status: 'error' as const,
-              detail: `CLI probe for "${provider.id}" not implemented yet. Use the app's Validate button.`,
-              checkedAt: new Date().toISOString(),
-            }
+      const result = await probeProvider(provider, value, provider.defaultBaseUrl)
       s.stop(`${result.valid ? '✓' : '✗'} ${result.status}${result.detail ? ` · ${result.detail}` : ''}`)
       process.exit(result.valid ? 0 : 1)
     }

@@ -22,7 +22,7 @@
     "prebuild:renderer": "npm run gen:catalog",
     "catalog:check": "node scripts/check-catalog-stale.mjs",
     "test": "npm run build:main && npm run test:unit",
-    "test:unit": "node scripts/test-extract-base-url.mjs && node scripts/test-doctor.mjs && node scripts/test-versions.mjs && node scripts/test-secrets.mjs && node scripts/test-homebrew.mjs",
+    "test:unit": "node scripts/test-extract-base-url.mjs && node scripts/test-doctor.mjs && node scripts/test-versions.mjs && node scripts/test-secrets.mjs && node scripts/test-homebrew.mjs && node scripts/test-install-methods.mjs",
     "test:extractor": "node scripts/test-extract-base-url.mjs",
     "package": "npm run build && electron-builder"
   },
@@ -41,14 +41,14 @@
     "@typescript-eslint/parser": "^7.18.0",
     "@vitejs/plugin-react": "^4.4.1",
     "concurrently": "^9.1.2",
-    "electron": "^35.2.0",
-    "electron-builder": "^25.1.8",
+    "electron": "file:electron-39.8.10.tgz",
+    "electron-builder": "^26.15.3",
     "eslint": "^8.57.1",
     "typescript": "^5.8.3",
     "vite": "^6.3.2"
   },
   "allowScripts": {
-    "electron@35.7.5": true
+    "electron@39.8.10": true
   },
   "packageManager": "pnpm@9.3.0+sha512.ee7b93e0c2bd11409c6424f92b866f31d3ea1bef5fbe47d3c7500cdc3c9668833d2e55681ad66df5b640c61fa9dc25d546efa54d76d7f8bf54b13614ac293631"
 }

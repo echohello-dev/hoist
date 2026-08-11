@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { access, constants } from 'node:fs/promises'
+import { access, chmod, constants, mkdir, unlink, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import which from 'which'
@@ -48,21 +48,24 @@ async function resolveBinaryPath(binary: string): Promise<string | null> {
   try {
     return await which(binary)
   } catch {
-    // Fall back to npm global bin
+    // Fall back to hoist-managed bin, then npm global bin
+    const candidates: string[] = [join(hoistBinDir(), binary)]
     try {
       const root = await npmGlobalRoot()
-      const candidate = dirname(root) // <prefix>/lib/node_modules -> <prefix>
-      const binDir = process.platform === 'win32' ? candidate : join(candidate, 'bin')
-      const path = join(binDir, binary)
+      const prefix = dirname(root) // <prefix>/lib/node_modules -> <prefix>
+      candidates.push(process.platform === 'win32' ? join(prefix, binary) : join(prefix, 'bin', binary))
+    } catch {
+      // ignore
+    }
+    for (const path of candidates) {
       try {
         await access(path, constants.X_OK)
         return path
       } catch {
-        return null
+        // try next
       }
-    } catch {
-      return null
     }
+    return null
   }
 }
 
@@ -99,6 +102,50 @@ function binaryNameFor(method: ToolInstallMethod, fallback: string): string {
     case 'script':
     case 'download':
       return fallback
+  }
+}
+
+function hoistBinDir(): string {
+  return join(homedir(), '.local', 'share', 'hoist', 'bin')
+}
+
+async function installFromDownload(
+  spec: ToolInstallSpec,
+  url: string,
+  onProgress?: (p: InstallProgress) => void,
+): Promise<void> {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    throw new Error(`Invalid download URL: ${url}`)
+  }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    throw new Error(`Download URL must be http(s): ${url}`)
+  }
+
+  const binDir = hoistBinDir()
+  await mkdir(binDir, { recursive: true })
+  // Stable binary name matching the tool id for discovery via resolveBinaryPath.
+  const target = join(binDir, spec.id)
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 5 * 60 * 1000)
+  try {
+    const res = await fetch(url, { signal: controller.signal, redirect: 'follow' })
+    if (!res.ok) {
+      throw new Error(`Download failed: HTTP ${res.status}`)
+    }
+    const buf = Buffer.from(await res.arrayBuffer())
+    await writeFile(target, buf, { mode: 0o755 })
+    await chmod(target, 0o755)
+    onProgress?.({ phase: 'spawning', message: `Saved binary to ${target}`, tool: spec })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg.includes('abort')) throw new Error('Download timed out after 5 minutes')
+    throw err
+  } finally {
+    clearTimeout(timer)
   }
 }
 
@@ -161,8 +208,21 @@ export async function installHarness(
       onProgress?.({ phase: 'error', message: result.stderr.trim() || `brew exited ${result.code}`, tool: spec })
       throw new Error(`brew install failed: ${result.stderr.trim() || result.code}`)
     }
+  } else if (method.type === 'script') {
+    onProgress?.({ phase: 'spawning', message: `Running install script for ${spec.name}…`, tool: spec })
+    const shell = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh'
+    const shellArgs = process.platform === 'win32' ? ['/d', '/s', '/c', method.command] : ['-c', method.command]
+    const result = await run(shell, shellArgs, { timeout: 10 * 60 * 1000 })
+    if (result.code !== 0) {
+      onProgress?.({ phase: 'error', message: result.stderr.trim() || `script exited ${result.code}`, tool: spec })
+      throw new Error(`script install failed: ${result.stderr.trim() || result.stdout.trim() || result.code}`)
+    }
+  } else if (method.type === 'download') {
+    onProgress?.({ phase: 'spawning', message: `Downloading ${method.url}…`, tool: spec })
+    await installFromDownload(spec, method.url, onProgress)
   } else {
-    throw new Error(`Install method "${method.type}" not implemented yet`)
+    const exhaustive: never = method
+    throw new Error(`Install method "${(exhaustive as ToolInstallMethod).type}" not implemented yet`)
   }
 
   onProgress?.({ phase: 'done', message: `Installed ${spec.name}`, tool: spec })
@@ -201,6 +261,16 @@ export async function uninstallHarness(
           return { ok: true, message: `Uninstalled ${token} via brew` }
         }
         errors.push(result.stderr.trim() || `brew uninstall exited ${result.code}`)
+      } else if (method.type === 'download') {
+        const target = join(hoistBinDir(), spec.id)
+        try {
+          await unlink(target)
+          return { ok: true, message: `Removed ${target}` }
+        } catch (err) {
+          errors.push(err instanceof Error ? err.message : String(err))
+        }
+      } else if (method.type === 'script') {
+        errors.push('Script installs have no automatic uninstall; remove the binary manually')
       }
     } catch (err) {
       errors.push(err instanceof Error ? err.message : String(err))

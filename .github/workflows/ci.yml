@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       - run: npm ci
       - run: npm run catalog:check
@@ -35,6 +35,6 @@ jobs:
       - working-directory: cli
         run: bun install --frozen-lockfile
       - working-directory: cli
-        run: bun run node_modules/typescript/bin/tsc --noEmit
+        run: bun run typecheck
       - working-directory: cli
         run: bun build src/index.ts --compile --outfile=/tmp/hoist-test --target=bun-linux-x64

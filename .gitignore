@@ -13,4 +13,3 @@ cli/bun.lock
 
 # Pen.dev local design file (binary, not for repo)
 design.pen
-electron-*.tgz

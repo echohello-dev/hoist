@@ -12,18 +12,14 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       component: ${{ steps.detect.outputs.component }}
-      version: ${{ steps.detect.outputs.version }}
     steps:
       - id: detect
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           if [[ "$TAG" == cli-* ]]; then
             echo "component=cli" >> "$GITHUB_OUTPUT"
-            echo "version=${TAG#cli-v}" >> "$GITHUB_OUTPUT"
           elif [[ "$TAG" == v* ]]; then
             echo "component=app" >> "$GITHUB_OUTPUT"
-            echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
           else
             echo "Unknown tag shape: $TAG" >&2
             exit 1
@@ -63,9 +59,15 @@ jobs:
           - os: windows-latest
             target: win-x64
             args: --win nsis:x64
+          - os: windows-11-arm
+            target: win-arm64
+            args: --win nsis:arm64
           - os: ubuntu-latest
             target: linux-x64
             args: --linux AppImage:x64
+          - os: ubuntu-24.04-arm
+            target: linux-arm64
+            args: --linux AppImage:arm64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -76,7 +78,6 @@ jobs:
       - name: Build and package app
         run: mise run release:app ${{ matrix.args }}
         env:
-          VERSION: ${{ needs.detect.outputs.version }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # macOS signing/notarization: opt-in via repo secrets.
           APPLE_ID: ${{ secrets.APPLE_ID }}

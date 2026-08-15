@@ -1,5 +1,5 @@
 [tools]
-node = "22.23.2"
+node = "26.7.0"
 bun = "1.3.14"
 
 [tasks."ci:app"]
@@ -36,6 +36,5 @@ run = [
 description = "Build an app release for the requested electron-builder target"
 run = [
   "npm ci",
-  '''node -e "const fs=require('node:fs');const p=require('./package.json');p.version=process.env.VERSION;fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n');"''',
   "npm run package --",
 ]

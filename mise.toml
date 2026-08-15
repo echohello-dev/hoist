@@ -23,6 +23,10 @@ file = "scripts/ci/release-app.sh"
 description = "Detect the release component from the Git tag"
 file = "scripts/ci/detect-release.sh"
 
+[tasks."release:calver"]
+description = "Calculate the next SemVer-compatible CalVer release"
+file = "scripts/ci/calver.sh"
+
 [tasks."release:approve-ci"]
 description = "Approve CI for the trusted Release Please PR"
 file = "scripts/ci/approve-release-ci.sh"

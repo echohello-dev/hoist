@@ -27,6 +27,11 @@ file = "scripts/ci/detect-release.sh"
 description = "Calculate the next SemVer-compatible CalVer release"
 file = "scripts/ci/calver.sh"
 
+[tasks."release:pr"]
+description = "Create or update the CalVer Release Please PR"
+tools = { "npm:release-please" = "17.6.1" }
+file = "scripts/ci/release-pr.sh"
+
 [tasks."release:approve-ci"]
 description = "Approve CI for the trusted Release Please PR"
 file = "scripts/ci/approve-release-ci.sh"

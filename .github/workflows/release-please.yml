@@ -20,15 +20,20 @@ jobs:
           install: false
       - id: calver
         run: mise run release:calver
-      - id: release
-        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-          release-as: ${{ steps.calver.outputs.version }}
+          skip-github-pull-request: true
           target-branch: main
+      - id: release-pr
+        name: Update CalVer release PR
+        env:
+          CALVER_VERSION: ${{ steps.calver.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: mise run release:pr
       - name: Approve release PR CI
-        if: ${{ steps.release.outputs.prs_created == 'true' }}
+        if: ${{ steps.release-pr.outputs.prs_created == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: mise run release:approve-ci

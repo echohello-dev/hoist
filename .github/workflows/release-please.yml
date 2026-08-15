@@ -23,4 +23,4 @@ jobs:
         if: ${{ steps.release.outputs.prs_created == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run ci.yml --ref release-please--branches--main
+        run: gh workflow run ci.yml --repo ${{ github.repository }} --ref release-please--branches--main

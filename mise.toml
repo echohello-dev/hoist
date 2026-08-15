@@ -4,37 +4,25 @@ bun = "1.3.14"
 
 [tasks."ci:app"]
 description = "Run the app CI checks"
-run = [
-  "npm ci",
-  "npm run catalog:check",
-  "npm run typecheck",
-  "npm run lint",
-  "npm test",
-  "npm run build",
-]
+file = "scripts/ci/app.sh"
 
 [tasks."ci:cli"]
 description = "Run the CLI CI checks"
-dir = "cli"
 env = { HOIST_CLI_OUTFILE = "/tmp/hoist-test", HOIST_CLI_TARGET = "bun-linux-x64" }
-run = [
-  "bun install --frozen-lockfile",
-  "bun run typecheck",
-  "bun build src/index.ts --compile --outfile=$HOIST_CLI_OUTFILE --target=$HOIST_CLI_TARGET",
-]
+file = "scripts/ci/cli.sh"
 
 [tasks."release:cli"]
 description = "Validate and build all CLI release binaries"
-dir = "cli"
-run = [
-  "bun install --frozen-lockfile",
-  "bun run typecheck",
-  "bun run scripts/build-all.ts",
-]
+file = "scripts/ci/release-cli.sh"
 
 [tasks."release:app"]
 description = "Build an app release for the requested electron-builder target"
-run = [
-  "npm ci",
-  "npm run package --",
-]
+file = "scripts/ci/release-app.sh"
+
+[tasks."release:detect"]
+description = "Detect the release component from the Git tag"
+file = "scripts/ci/detect-release.sh"
+
+[tasks."release:approve-ci"]
+description = "Approve CI for the trusted Release Please PR"
+file = "scripts/ci/approve-release-ci.sh"

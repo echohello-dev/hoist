@@ -1,0 +1,23 @@
+name: Approve Release CI
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  actions: write
+
+jobs:
+  approve:
+    if: >-
+      github.event.workflow_run.conclusion == 'action_required' &&
+      github.event.workflow_run.actor.login == 'github-actions[bot]' &&
+      github.event.workflow_run.head_branch == 'release-please--branches--main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Approve Release Please CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/approve"

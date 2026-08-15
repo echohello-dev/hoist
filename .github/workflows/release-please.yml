@@ -5,6 +5,7 @@ on:
     branches: [main]
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
 
@@ -12,8 +13,36 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+      - id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           target-branch: main
+      - name: Approve release PR CI
+        if: ${{ steps.release.outputs.prs_created == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          HEAD_SHA=$(gh pr list --repo "$GITHUB_REPOSITORY" \
+            --head release-please--branches--main \
+            --json headRefOid --jq '.[0].headRefOid')
+
+          for _ in {1..12}; do
+            RUN_ID=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow CI \
+              --branch release-please--branches--main --event pull_request --limit 5 \
+              --json databaseId,conclusion,headSha \
+              --jq "[.[] | select(.headSha == \"$HEAD_SHA\" and .conclusion == \"action_required\")][0].databaseId // empty")
+
+            if [[ -n "$RUN_ID" ]]; then
+              ACTOR=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" --jq '.actor.login')
+              [[ "$ACTOR" == "github-actions[bot]" ]]
+              gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/approve"
+              exit 0
+            fi
+
+            sleep 5
+          done
+
+          echo "Timed out waiting for release PR CI approval" >&2
+          exit 1

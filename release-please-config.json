@@ -2,16 +2,12 @@
   "packages": {
     ".": {
       "release-type": "node",
-      "include-component-in-tag": false,
-      "versioning": "calver",
-      "calendar-versioning": "yyyy.mm.patch"
+      "include-component-in-tag": false
     },
     "cli": {
       "release-type": "node",
       "include-component-in-tag": true,
-      "component": "cli",
-      "versioning": "calver",
-      "calendar-versioning": "yyyy.mm.patch"
+      "component": "cli"
     }
   },
   "changelog-sections": [

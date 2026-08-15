@@ -10,14 +10,18 @@ permissions:
 
 jobs:
   approve:
-    if: >-
-      github.event.workflow_run.conclusion == 'action_required' &&
-      github.event.workflow_run.actor.login == 'github-actions[bot]' &&
-      github.event.workflow_run.head_branch == 'release-please--branches--main'
     runs-on: ubuntu-latest
     steps:
       - name: Approve Release Please CI
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id }}
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/approve"
+        run: |
+          RUN=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" \
+            --jq '[.conclusion, .actor.login, .head_branch] | join("|")')
+
+          if [[ "$RUN" == "action_required|github-actions[bot]|release-please--branches--main" ]]; then
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/approve"
+          else
+            echo "No trusted Release Please run to approve"
+          fi

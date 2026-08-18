@@ -30,6 +30,9 @@ const api: HoistAPI = {
   probe: {
     run: (req) => ipcRenderer.invoke(CHANNELS.probeRun, req),
   },
+  usage: {
+    run: (req) => ipcRenderer.invoke(CHANNELS.usageRun, req),
+  },
   clipboard: {
     read: () => ipcRenderer.invoke(CHANNELS.clipboardRead),
   },

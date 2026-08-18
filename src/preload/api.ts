@@ -28,6 +28,9 @@ export interface HoistAPI {
   probe: {
     run: (req: ProbeRequest) => Promise<ProbeResponse>
   }
+  usage: {
+    run: (req: UsageRequest) => Promise<UsageResponse>
+  }
   clipboard: {
     /** Read the current clipboard text. Renderer is the only caller;
      *  the main process never invokes this opportunistically. */
@@ -255,5 +258,35 @@ export interface ProbeResult {
   budgetRemaining?: number
   budgetTotal?: number
   expiresAt?: string
+  checkedAt: string
+}
+
+export type UsageRequest =
+  | { source: 'harness'; harnessId: string }
+  | { source: 'provider'; providerId: string; secretId?: string }
+
+export interface UsageResponse {
+  ok: boolean
+  error?: string
+  result?: UsageResult
+}
+
+export interface UsageWindow {
+  label: string
+  usedPercent: number
+  resetsAt?: string
+}
+
+export interface UsageResult {
+  available: boolean
+  plan?: string
+  windows: UsageWindow[]
+  credits?: {
+    balance?: number
+    limit?: number
+    unlimited?: boolean
+    currency?: string
+  }
+  detail?: string
   checkedAt: string
 }

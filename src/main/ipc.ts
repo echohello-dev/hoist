@@ -4,6 +4,7 @@ import { createSafeStorageBackend } from './secrets/safestorage'
 import { maskSecret } from './secrets/backend'
 import type { SecretBackend } from './secrets/backend'
 import { runProbe } from './probes'
+import { runHarnessUsage, runProviderUsage } from './usage'
 import { libraryDiscover } from './library'
 import { discoverAll, installHarness, uninstallHarness } from './installer'
 import { changelogForRange, checkHarnessVersions } from './installer/versions'
@@ -43,6 +44,10 @@ interface ProbeRequest {
   apiKey?: string
   baseUrl?: string
 }
+
+type UsageRequest =
+  | { source: 'harness'; harnessId: string }
+  | { source: 'provider'; providerId: string; secretId?: string }
 
 interface GatewayApplyRequest {
   gatewayId: string | null
@@ -315,6 +320,26 @@ export function registerIpcHandlers(): void {
         return { ok: false as const, error: 'No API key available for probe.' }
       }
       const result = await runProbe({ providerId: req.providerId, apiKey, baseUrl: req.baseUrl })
+      return { ok: true as const, result }
+    } catch (err) {
+      return { ok: false as const, error: errMsg(err) }
+    }
+  })
+
+  ipcMain.handle(CHANNELS.usageRun, async (_evt, req: UsageRequest) => {
+    try {
+      if (req.source === 'harness') {
+        const result = await runHarnessUsage(req.harnessId)
+        return { ok: true as const, result }
+      }
+      let apiKey: string | undefined
+      if (req.secretId) {
+        apiKey = (await getBackend().get(req.secretId)) ?? undefined
+      }
+      if (!apiKey) {
+        return { ok: false as const, error: 'No API key available for usage lookup.' }
+      }
+      const result = await runProviderUsage(req.providerId, apiKey)
       return { ok: true as const, result }
     } catch (err) {
       return { ok: false as const, error: errMsg(err) }

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">Hoist mark</title>
+  <path fill="currentColor" fill-rule="evenodd" d="M14 16h72v70H70V57H30v29H14V16Zm16 16v10h40V32H30Z"/>
+  <path fill="#F06A3C" d="m50 31 13 16h-8v22H45V47h-8l13-16Z"/>
+</svg>

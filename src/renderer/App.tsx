@@ -29,6 +29,8 @@ import type {
   LibraryEntry,
   ProbeResult,
   ProviderSummary,
+  UsageRequest,
+  UsageResult,
   VaultEntry,
 } from '../preload/api'
 import {
@@ -43,6 +45,204 @@ declare global {
   interface Window {
     hoist: HoistAPI
   }
+}
+
+const USAGE_HARNESSES: Array<{ id: string; name: string }> = [
+  { id: 'claude-code', name: 'Claude Code' },
+  { id: 'codex', name: 'Codex' },
+]
+
+function HarnessUsageOverview() {
+  const [results, setResults] = useState<Record<string, UsageResult>>({})
+  const [loading, setLoading] = useState(false)
+
+  const run = useCallback(async () => {
+    setLoading(true)
+    const entries = await Promise.all(USAGE_HARNESSES.map(async (h) => {
+      try {
+        const res = await window.hoist.usage.run({ source: 'harness', harnessId: h.id })
+        return [h.id, res.ok && res.result ? res.result : null] as const
+      } catch {
+        return [h.id, null] as const
+      }
+    }))
+    setResults(Object.fromEntries(entries.map(([id, r]) => [id, r ?? undefined]).filter(([, r]) => r)))
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { void run() }, [run])
+
+  return (
+    <div className="hoist-rail-section">
+      <div className="hoist-rail-section-label">Harness usage</div>
+      {USAGE_HARNESSES.map((h) => {
+        const r = results[h.id]
+        return (
+          <div key={h.id} style={{ marginBottom: 14 }}>
+            <div className="hoist-usage-row-head" style={{ marginBottom: 6 }}>
+              <span style={{ fontWeight: 600 }}>{h.name}</span>
+              {r?.plan && <span className="badge">{r.plan}</span>}
+            </div>
+            {loading && !r && <div className="hoist-usage-note">Checking…</div>}
+            {r && !r.available && <div className="hoist-usage-note">{r.detail ?? 'Unavailable.'}</div>}
+            {r?.windows.map((w) => (
+              <div className="hoist-usage-row" key={w.label}>
+                <div className="hoist-usage-row-head">
+                  <span>{w.label}</span>
+                  <span className="mono">{w.usedPercent}%</span>
+                </div>
+                <div className="hoist-usage-bar">
+                  <div
+                    className={`hoist-usage-bar-fill${w.usedPercent >= 90 ? ' is-hot' : ''}`}
+                    style={{ width: `${Math.min(100, w.usedPercent)}%` }}
+                  />
+                </div>
+                {w.resetsAt && <div className="hoist-usage-reset">resets {formatReset(w.resetsAt)}</div>}
+              </div>
+            ))}
+          </div>
+        )
+      })}
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm"
+        style={{ width: '100%', justifyContent: 'flex-start' }}
+        disabled={loading}
+        onClick={() => void run()}
+      >
+        <RotateCw size={14} /> Refresh usage
+      </button>
+    </div>
+  )
+}
+
+function formatReset(resetsAt: string): string {
+  const t = Date.parse(resetsAt)
+  if (!Number.isFinite(t)) return '—'
+  const ms = t - Date.now()
+  if (ms <= 0) return 'now'
+  const min = Math.round(ms / 60000)
+  if (min < 60) return `in ${min}m`
+  const hr = Math.round(min / 60)
+  if (hr < 48) return `in ${hr}h`
+  return `in ${Math.round(hr / 24)}d`
+}
+
+function UsagePanel({ request }: { request: UsageRequest }) {
+  const requestKey = JSON.stringify(request)
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<UsageResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const run = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await window.hoist.usage.run(JSON.parse(requestKey) as UsageRequest)
+      if (res.ok && res.result) setResult(res.result)
+      else setError(res.error ?? 'Usage lookup failed.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setLoading(false)
+    }
+  }, [requestKey])
+
+  useEffect(() => { void run() }, [run])
+
+  return (
+    <div className="hoist-rail-section">
+      <div className="hoist-rail-section-label">Usage</div>
+      {loading && !result && <div className="hoist-usage-note">Checking usage…</div>}
+      {error && <div className="hoist-usage-note">{error}</div>}
+      {result && (
+        <>
+          {result.plan && <Field label="Plan" value={result.plan} />}
+          {result.windows.map((w) => (
+            <div className="hoist-usage-row" key={w.label}>
+              <div className="hoist-usage-row-head">
+                <span>{w.label}</span>
+                <span className="mono">{w.usedPercent}%</span>
+              </div>
+              <div className="hoist-usage-bar">
+                <div
+                  className={`hoist-usage-bar-fill${w.usedPercent >= 90 ? ' is-hot' : ''}`}
+                  style={{ width: `${Math.min(100, w.usedPercent)}%` }}
+                />
+              </div>
+              {w.resetsAt && <div className="hoist-usage-reset">resets {formatReset(w.resetsAt)}</div>}
+            </div>
+          ))}
+          {result.credits && (
+            <Field
+              label="Credits"
+              value={result.credits.unlimited
+                ? 'unlimited'
+                : result.credits.balance != null
+                  ? `${result.credits.currency === 'USD' || !result.credits.currency ? '$' : `${result.credits.currency} `}${result.credits.balance}${result.credits.limit != null ? ` / ${result.credits.currency === 'USD' || !result.credits.currency ? '$' : ''}${result.credits.limit}` : ''}`
+                  : '—'}
+            />
+          )}
+          {!result.available && <div className="hoist-usage-note">{result.detail ?? 'Usage unavailable.'}</div>}
+          {result.available && result.detail && <div className="hoist-usage-note">{result.detail}</div>}
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            style={{ width: '100%', justifyContent: 'flex-start' }}
+            disabled={loading}
+            onClick={() => void run()}
+          >
+            <RotateCw size={14} /> Refresh usage
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
+
+function HoistMark() {
+  return <img src="icon.svg" alt="" style={{ display: 'block', width: '100%', height: '100%' }} />
+}
+
+const THEME_OPTIONS = [
+  ['', 'rigging yard (default)'],
+  ['signal', 'signal orange'],
+  ['amber', 'amber'],
+  ['oxide', 'oxide'],
+  ['safety', 'safety yellow'],
+  ['cobalt', 'cobalt'],
+  ['teal', 'teal'],
+  ['plum', 'plum'],
+  ['coral', 'coral'],
+  ['lime', 'lime'],
+] as const
+
+function DevThemePicker() {
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('hoist.theme') ?? '' } catch { return '' }
+  })
+
+  useEffect(() => {
+    try { localStorage.setItem('hoist.theme', theme) } catch { /* ignore */ }
+    if (theme) document.documentElement.dataset.theme = theme
+    else delete document.documentElement.dataset.theme
+  }, [theme])
+
+  if (window.location.protocol === 'file:') return null
+
+  return (
+    <select
+      className="hoist-dev-theme"
+      value={theme}
+      onChange={(e) => setTheme(e.target.value)}
+      title="Dev: explore accent colorways"
+      aria-label="Accent colorway"
+    >
+      {THEME_OPTIONS.map(([value, label]) => (
+        <option key={value} value={value}>{label}</option>
+      ))}
+    </select>
+  )
 }
 
 type SurfaceId = 'library' | 'harnesses' | 'keys' | 'gateway' | 'status' | 'doctor'
@@ -435,6 +635,7 @@ export function App() {
 
   return (
     <div className="hoist" style={shellStyle}>
+      <DevThemePicker />
       <TopBar
         onOpenPalette={() => setPaletteOpen(true)}
         surface={surface}
@@ -645,7 +846,7 @@ function TopBar({
   return (
     <header className="hoist-topbar">
       <div className="hoist-topbar-left">
-        <Zap className="hoist-mark" size={16} strokeWidth={2.25} />
+        <span className="hoist-mark"><HoistMark /></span>
         <span className="hoist-brand">hoist</span>
         <span className="hoist-section-divider" />
         <span className="hoist-section-label">{sectionLabel}</span>
@@ -696,7 +897,7 @@ function NavSidebar({ surface, onSurface, statusCounts, expanded, onToggleExpand
     return (
       <aside className="hoist-rail" aria-label="Navigation">
         <button type="button" className="hoist-rail-account" title="hoist · Personal vault">
-          <div className="hoist-account-mark">H</div>
+          <div className="hoist-account-mark"><HoistMark /></div>
         </button>
         <div className="hoist-rail-section">
           {groups.map((g) => (
@@ -739,7 +940,7 @@ function NavSidebar({ surface, onSurface, statusCounts, expanded, onToggleExpand
     <aside className="hoist-sidebar" aria-label="Navigation">
       <div className="hoist-sidebar-top">
         <button type="button" className="hoist-sidebar-account">
-          <div className="hoist-account-mark">H</div>
+          <div className="hoist-account-mark"><HoistMark /></div>
           <div className="hoist-account-meta">
             <div className="hoist-account-name">hoist</div>
             <div className="hoist-account-sub">Personal vault</div>
@@ -2994,6 +3195,9 @@ function DetailRail({
                 </button>
               )}
             </div>
+            {selectedHarness.status === 'installed' && (
+              <UsagePanel request={{ source: 'harness', harnessId: selectedHarness.catalogId }} />
+            )}
             <PathPriorityPanel
               catalogId={selectedHarness.catalogId}
               installs={selectedHarness.installs}
@@ -3059,6 +3263,7 @@ function DetailRail({
                 <X size={14} /> Delete
               </button>
             </div>
+            <UsagePanel request={{ source: 'provider', providerId: selectedKey.providerId, secretId: selectedKey.secretId }} />
           </>
         ) : (
           <div className="hoist-rail-section">
@@ -3272,6 +3477,7 @@ function WatchtowerDetailRail({
 
   return (
     <aside className="hoist-rail hoist-rail-detail">
+      <HarnessUsageOverview />
       <div className="hoist-rail-section">
         <div className="hoist-rail-section-label">Health snapshot</div>
         <div className="hoist-rail-kv" style={{ marginTop: 8 }}>

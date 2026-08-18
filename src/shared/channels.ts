@@ -8,6 +8,7 @@ export const CHANNELS = {
   harnessInstall: 'harness:install',
   providerList: 'provider:list',
   probeRun: 'probe:run',
+  usageRun: 'usage:run',
   gatewayList: 'gateway:list',
   gatewayApply: 'gateway:apply',
   harnessConfigShow: 'harness:configShow',

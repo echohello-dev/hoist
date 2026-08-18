@@ -187,3 +187,20 @@
 }
 .icon svg { display: block; }
 .icon-lg { width: 20px; height: 20px; }
+/* Usage meters — harness subscription windows + provider credits */
+.hoist-usage-row { margin-bottom: 10px; }
+.hoist-usage-row-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 12px; margin-bottom: 4px;
+}
+.hoist-usage-bar {
+  height: 6px; border-radius: var(--radius-pill);
+  background: var(--surface-2); overflow: hidden;
+}
+.hoist-usage-bar-fill {
+  height: 100%; border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+.hoist-usage-bar-fill.is-hot { background: var(--status-bad); }
+.hoist-usage-reset { font-size: 11px; color: var(--text-subtle); margin-top: 2px; }
+.hoist-usage-note { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }

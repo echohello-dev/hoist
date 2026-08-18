@@ -1,0 +1,27 @@
+:root {
+  --hoist-midnight-950: #101820;
+  --hoist-midnight-900: #17212b;
+  --hoist-midnight-800: #24313d;
+  --hoist-midnight-700: #354553;
+  --hoist-canvas-50: #fffdf6;
+  --hoist-canvas-100: #f5f0e6;
+  --hoist-canvas-200: #e6dfd1;
+  --hoist-canvas-300: #cec5b5;
+  --hoist-signal-500: #f06a3c;
+  --hoist-signal-400: #ff895a;
+  --hoist-signal-300: #ffb056;
+  --hoist-mint-500: #52c7a5;
+  --hoist-sky-500: #60a5fa;
+  --hoist-danger-500: #e65353;
+
+  --hoist-bg: var(--hoist-midnight-950);
+  --hoist-panel: var(--hoist-midnight-900);
+  --hoist-panel-raised: var(--hoist-midnight-800);
+  --hoist-text: var(--hoist-canvas-50);
+  --hoist-text-muted: #aeb7bc;
+  --hoist-border: rgba(255, 253, 246, 0.12);
+  --hoist-action: var(--hoist-signal-500);
+  --hoist-success: var(--hoist-mint-500);
+  --hoist-info: var(--hoist-sky-500);
+  --hoist-error: var(--hoist-danger-500);
+}

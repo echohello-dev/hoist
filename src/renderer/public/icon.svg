@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Hoist app icon (legacy rounded)</title>
+  <desc id="desc">Pre-masked variant for legacy icns/png fallbacks where the platform does not apply the icon mask.</desc>
+  <rect width="1024" height="1024" rx="224" fill="#101820"/>
+  <path d="M512 0V218" fill="none" stroke="#FFFDF6" stroke-width="34"/>
+  <path
+    d="M512 522c0 78 98 88 98 178a130 130 0 0 1-260 0"
+    fill="none"
+    stroke="#FFFDF6"
+    stroke-width="78"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M442 205c0-30 24-54 54-54h32c30 0 54 24 54 54v151H442V205Z"
+    fill="#FFFDF6"
+  />
+  <path
+    d="M309 282h326c25 0 48 11 64 30l79 92c12 14 12 35 0 49l-79 97c-16 20-40 31-65 31H309c-34 0-62-28-62-62V344c0-34 28-62 62-62Z"
+    fill="#F06A3C"
+  />
+</svg>

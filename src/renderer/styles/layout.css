@@ -12,6 +12,21 @@
   color: var(--text);
 }
 
+.hoist-dev-theme {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: 100;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  font: 500 11px var(--font-mono);
+  padding: 4px 6px;
+  opacity: 0.5;
+}
+.hoist-dev-theme:hover { opacity: 1; }
+
 .hoist-body {
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--detail-width);
@@ -85,7 +100,7 @@ body.is-col-resizing * {
 
 .hoist-mark {
   display: inline-flex; align-items: center; justify-content: center;
-  color: var(--accent);
+  width: 20px; height: 20px; border-radius: var(--radius-tile); overflow: hidden;
 }
 .hoist-brand {
   font-weight: 700; font-size: 14px; letter-spacing: var(--tracking-display);
@@ -172,9 +187,10 @@ body.is-col-resizing * {
 }
 .hoist-account-mark {
   width: 28px; height: 28px; border-radius: var(--radius-control);
-  background: var(--accent); color: var(--text-on-accent);
+  background: transparent; color: var(--text-on-accent);
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 13px;
+  overflow: hidden;
 }
 .hoist-account-meta { flex: 1; min-width: 0; }
 .hoist-account-name { font-size: 13px; font-weight: 600; }
@@ -775,13 +791,14 @@ body.is-col-resizing * {
   width: 32px;
   height: 32px;
   border-radius: var(--radius-tile);
-  background: var(--accent);
+  background: transparent;
   color: var(--text-on-accent);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   font-size: 14px;
+  overflow: hidden;
 }
 
 .hoist-rail-section {
@@ -1991,3 +2008,11 @@ select.input {
   border-radius: var(--radius-control);
   background: var(--surface-1);
 }
+
+/* macOS liquid glass — panes go translucent so the window vibrancy reads through */
+html[data-platform='darwin'] .hoist,
+html[data-platform='darwin'] .hoist-main { background: transparent; }
+html[data-platform='darwin'] .hoist-topbar { background: rgba(18, 18, 20, 0.55); }
+html[data-platform='darwin'] .hoist-sidebar,
+html[data-platform='darwin'] .hoist-rail,
+html[data-platform='darwin'] .hoist-rail.hoist-rail { background: rgba(26, 26, 29, 0.42); }

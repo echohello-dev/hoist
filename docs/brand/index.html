@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101820">
+  <title>Hoist Brand Yard</title>
+  <link rel="icon" href="../../build/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&amp;family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./tokens.css">
+  <style>
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--hoist-midnight-950);
+      background:
+        linear-gradient(rgba(16, 24, 32, .035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(16, 24, 32, .035) 1px, transparent 1px),
+        var(--hoist-canvas-100);
+      background-size: 28px 28px;
+      font-family: Manrope, sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .34;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.08'/%3E%3C/svg%3E");
+      mix-blend-mode: multiply;
+      z-index: 20;
+    }
+    a { color: inherit; }
+    button { font: inherit; }
+    .mono { font-family: "DM Mono", monospace; }
+    .shell { width: min(1380px, calc(100% - 48px)); margin: 0 auto; }
+    .topbar {
+      height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(16, 24, 32, .18);
+    }
+    .wordmark { display: flex; gap: 12px; align-items: center; font-weight: 800; font-size: 20px; letter-spacing: -.045em; }
+    .wordmark img { width: 36px; height: 36px; padding: 6px; color: var(--hoist-midnight-950); }
+    .edition { margin-left: 8px; padding: 4px 8px; border: 1px solid rgba(16, 24, 32, .2); border-radius: 999px; font: 500 10px "DM Mono", monospace; letter-spacing: .08em; text-transform: uppercase; }
+    nav { display: flex; gap: 24px; font-size: 13px; font-weight: 700; }
+    nav a { text-decoration: none; }
+    nav a:hover { color: var(--hoist-signal-500); }
+    .hero {
+      min-height: 730px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(420px, .95fr);
+      align-items: center;
+      gap: 7vw;
+      padding: 76px 0 92px;
+    }
+    .eyebrow { display: flex; align-items: center; gap: 12px; margin-bottom: 26px; font: 500 11px "DM Mono", monospace; letter-spacing: .12em; text-transform: uppercase; }
+    .eyebrow::before { content: ""; width: 44px; height: 3px; background: var(--hoist-signal-500); }
+    h1 { max-width: 760px; margin: 0; font-size: clamp(68px, 8.6vw, 142px); line-height: .82; letter-spacing: -.085em; }
+    h1 span { color: var(--hoist-signal-500); }
+    .hero-copy { max-width: 610px; margin: 34px 0 0 5px; font-size: clamp(17px, 1.4vw, 22px); line-height: 1.45; letter-spacing: -.025em; }
+    .hero-meta { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 30px; }
+    .tag { padding: 8px 11px; border: 1px solid rgba(16, 24, 32, .2); background: rgba(255, 253, 246, .45); border-radius: 4px; font: 500 10px "DM Mono", monospace; text-transform: uppercase; letter-spacing: .07em; }
+    .icon-stage { position: relative; display: grid; place-items: center; min-height: 520px; }
+    .icon-stage::before {
+      content: "";
+      position: absolute;
+      width: 88%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: var(--hoist-signal-300);
+      filter: blur(1px);
+      transform: rotate(-6deg);
+    }
+    .app-icon { position: relative; width: min(430px, 78vw); filter: drop-shadow(0 42px 35px rgba(16, 24, 32, .28)); transform: rotate(4deg); transition: transform .45s cubic-bezier(.2,.8,.2,1); }
+    .icon-stage:hover .app-icon { transform: rotate(0deg) translateY(-10px); }
+    .dimension { position: absolute; right: 0; bottom: 6%; writing-mode: vertical-rl; font: 500 10px "DM Mono", monospace; letter-spacing: .12em; }
+    .section { padding: 110px 0; border-top: 1px solid rgba(16, 24, 32, .18); }
+    .section-head { display: grid; grid-template-columns: 1fr 2fr; gap: 40px; margin-bottom: 58px; }
+    .section-no { font: 500 11px "DM Mono", monospace; letter-spacing: .1em; }
+    h2 { margin: 0; max-width: 850px; font-size: clamp(42px, 5vw, 78px); line-height: .97; letter-spacing: -.065em; }
+    .marks { display: grid; grid-template-columns: 1.35fr .65fr .65fr; gap: 16px; }
+    .mark-card { min-height: 350px; padding: 32px; display: flex; flex-direction: column; justify-content: space-between; border-radius: 12px; overflow: hidden; }
+    .mark-card.dark { color: var(--hoist-canvas-50); background: var(--hoist-midnight-950); }
+    .mark-card.orange { color: var(--hoist-midnight-950); background: var(--hoist-signal-500); }
+    .mark-card.light { background: var(--hoist-canvas-50); border: 1px solid rgba(16, 24, 32, .12); }
+    .mark-lockup { display: flex; align-items: center; justify-content: center; flex: 1; gap: 24px; }
+    .mark-lockup img { width: 110px; }
+    .mark-lockup strong { font-size: clamp(42px, 5vw, 72px); letter-spacing: -.07em; }
+    .mark-card.small .mark-lockup img { width: 132px; }
+    .spec-label { display: flex; justify-content: space-between; opacity: .62; font: 500 9px "DM Mono", monospace; letter-spacing: .1em; text-transform: uppercase; }
+    .icon-lab { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, .6fr); gap: 16px; align-items: start; }
+    .icon-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .icon-option {
+      appearance: none;
+      min-width: 0;
+      padding: 16px;
+      color: var(--hoist-midnight-950);
+      text-align: left;
+      border: 1px solid rgba(16, 24, 32, .14);
+      background: rgba(255, 253, 246, .56);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform .2s ease, border-color .2s ease, background .2s ease;
+    }
+    .icon-option:hover { transform: translateY(-3px); border-color: rgba(16, 24, 32, .35); }
+    .icon-option.is-active { border-color: var(--hoist-signal-500); background: var(--hoist-canvas-50); box-shadow: inset 0 0 0 1px var(--hoist-signal-500); }
+    .candidate-icon { display: block; width: 100%; height: auto; border-radius: 23%; box-shadow: 0 15px 28px rgba(16,24,32,.17); }
+    .candidate-meta { display: flex; justify-content: space-between; align-items: end; gap: 10px; margin-top: 15px; }
+    .candidate-meta strong { display: block; font-size: 12px; letter-spacing: -.02em; }
+    .candidate-meta span { display: block; margin-top: 2px; color: #69747c; font: 400 8px "DM Mono", monospace; text-transform: uppercase; letter-spacing: .06em; }
+    .mini-icon { width: 24px; height: 24px; flex: 0 0 auto; border-radius: 6px; box-shadow: 0 3px 8px rgba(16,24,32,.2); }
+    .icon-bench { position: sticky; top: 24px; min-height: 600px; padding: 26px; color: var(--hoist-canvas-50); background: var(--hoist-midnight-950); border-radius: 12px; overflow: hidden; }
+    .icon-bench::before { content: ""; position: absolute; inset: 0; opacity: .22; background: repeating-linear-gradient(0deg, transparent, transparent 27px, rgba(255,255,255,.08) 28px), repeating-linear-gradient(90deg, transparent, transparent 27px, rgba(255,255,255,.08) 28px); }
+    .bench-content { position: relative; min-height: 548px; display: flex; flex-direction: column; }
+    .bench-label { display: flex; justify-content: space-between; color: #89949c; font: 500 9px "DM Mono", monospace; letter-spacing: .1em; text-transform: uppercase; }
+    .bench-stage { flex: 1; display: grid; place-items: center; }
+    .bench-stage svg { width: min(280px, 82%); filter: drop-shadow(0 34px 28px rgba(0,0,0,.4)); }
+    .bench-detail { border-top: 1px solid rgba(255,255,255,.13); padding-top: 20px; }
+    .bench-detail h3 { margin: 0 0 6px; font-size: 27px; letter-spacing: -.05em; }
+    .bench-detail p { min-height: 44px; margin: 0; color: #9ba5ac; font-size: 12px; }
+    .bench-sizes { display: flex; align-items: end; gap: 13px; margin-top: 18px; }
+    .bench-sizes svg { border-radius: 23%; }
+    .bench-sizes svg:nth-child(1) { width: 48px; }
+    .bench-sizes svg:nth-child(2) { width: 32px; }
+    .bench-sizes svg:nth-child(3) { width: 20px; }
+    .palette { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; }
+    .swatch { grid-column: span 3; min-height: 220px; padding: 20px; border-radius: 10px; display: flex; flex-direction: column; justify-content: flex-end; box-shadow: inset 0 0 0 1px rgba(16, 24, 32, .12); }
+    .swatch.wide { grid-column: span 6; }
+    .swatch strong { font-size: 17px; letter-spacing: -.03em; }
+    .swatch code { margin-top: 4px; font: 400 11px "DM Mono", monospace; }
+    .swatch.dark-text { color: var(--hoist-midnight-950); }
+    .swatch.light-text { color: var(--hoist-canvas-50); }
+    .type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .type-card { min-height: 410px; padding: 36px; border: 1px solid rgba(16, 24, 32, .14); background: rgba(255, 253, 246, .48); border-radius: 10px; display: flex; flex-direction: column; justify-content: space-between; }
+    .type-display { font-weight: 800; font-size: clamp(64px, 8vw, 124px); line-height: .8; letter-spacing: -.09em; }
+    .type-mono { font: 500 clamp(42px, 5vw, 72px)/1 "DM Mono", monospace; letter-spacing: -.06em; }
+    .type-note { display: flex; justify-content: space-between; border-top: 1px solid rgba(16,24,32,.14); padding-top: 18px; font-size: 12px; }
+    .ui-board { padding: 20px; background: var(--hoist-midnight-950); border-radius: 18px; box-shadow: 0 34px 80px rgba(16,24,32,.25); }
+    .window { min-height: 610px; border: 1px solid rgba(255,255,255,.12); background: var(--hoist-midnight-900); border-radius: 10px; overflow: hidden; color: var(--hoist-canvas-50); }
+    .window-bar { height: 50px; padding: 0 18px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,.1); }
+    .traffic { display: flex; gap: 7px; }
+    .traffic i { width: 9px; height: 9px; border-radius: 50%; background: var(--hoist-midnight-700); }
+    .window-brand { display: flex; gap: 8px; align-items: center; font-weight: 800; letter-spacing: -.04em; }
+    .window-brand img { width: 25px; filter: brightness(0) invert(1); }
+    .window-body { display: grid; grid-template-columns: 230px 1fr; min-height: 560px; }
+    .sidebar { padding: 20px 12px; border-right: 1px solid rgba(255,255,255,.1); }
+    .side-label { margin: 18px 12px 8px; color: #77828b; font: 500 9px "DM Mono", monospace; letter-spacing: .12em; text-transform: uppercase; }
+    .side-item { padding: 10px 12px; display: flex; justify-content: space-between; border-radius: 5px; color: #aeb7bc; font-size: 12px; }
+    .side-item.active { color: var(--hoist-canvas-50); background: var(--hoist-midnight-800); box-shadow: inset 3px 0 var(--hoist-signal-500); }
+    .workspace { padding: 44px; background: radial-gradient(circle at 90% 0%, rgba(240,106,60,.08), transparent 32%); }
+    .workspace h3 { margin: 0; font-size: 40px; letter-spacing: -.06em; }
+    .workspace > p { color: #8f9aa2; margin: 6px 0 30px; }
+    .tool-row { margin-top: 9px; padding: 18px; display: grid; grid-template-columns: 44px 1fr auto auto; gap: 16px; align-items: center; border: 1px solid rgba(255,255,255,.1); background: rgba(36,49,61,.48); border-radius: 7px; }
+    .tool-icon { width: 42px; height: 42px; display: grid; place-items: center; background: var(--hoist-midnight-800); border-radius: 6px; font-weight: 800; }
+    .tool-name strong { display: block; font-size: 13px; }
+    .tool-name span { color: #77828b; font: 400 10px "DM Mono", monospace; }
+    .status { padding: 5px 8px; color: var(--hoist-mint-500); background: rgba(82,199,165,.1); border: 1px solid rgba(82,199,165,.22); border-radius: 999px; font: 500 9px "DM Mono", monospace; text-transform: uppercase; }
+    .action { border: 0; padding: 8px 13px; color: var(--hoist-midnight-950); background: var(--hoist-signal-500); border-radius: 5px; font-weight: 800; font-size: 11px; cursor: pointer; }
+    .action:hover { background: var(--hoist-signal-300); }
+    .principles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .principle { min-height: 280px; padding: 28px; border-top: 4px solid var(--hoist-signal-500); background: var(--hoist-canvas-50); }
+    .principle:nth-child(2) { border-color: var(--hoist-mint-500); }
+    .principle:nth-child(3) { border-color: var(--hoist-midnight-950); }
+    .principle .num { font: 500 11px "DM Mono", monospace; }
+    .principle h3 { margin: 68px 0 12px; font-size: 27px; letter-spacing: -.05em; }
+    .principle p { margin: 0; color: #56616a; }
+    footer { padding: 42px 0 56px; border-top: 1px solid rgba(16,24,32,.18); display: flex; justify-content: space-between; font: 500 10px "DM Mono", monospace; letter-spacing: .07em; text-transform: uppercase; }
+    .reveal { opacity: 0; transform: translateY(24px); animation: reveal .7s cubic-bezier(.2,.8,.2,1) forwards; }
+    .hero .reveal:nth-child(2) { animation-delay: .1s; }
+    .hero .reveal:nth-child(3) { animation-delay: .2s; }
+    .icon-stage.reveal { animation-delay: .25s; }
+    @keyframes reveal { to { opacity: 1; transform: translateY(0); } }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; animation: none !important; transition: none !important; } .reveal { opacity: 1; transform: none; } }
+    @media (max-width: 920px) {
+      .shell { width: min(100% - 28px, 720px); }
+      nav { display: none; }
+      .hero { grid-template-columns: 1fr; gap: 40px; min-height: auto; padding: 70px 0; }
+      .icon-stage { min-height: 420px; }
+      .section { padding: 74px 0; }
+      .section-head { grid-template-columns: 1fr; gap: 14px; }
+      .marks, .type-grid, .principles, .icon-lab { grid-template-columns: 1fr; }
+      .icon-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .icon-bench { position: relative; top: auto; min-height: 500px; }
+      .mark-card { min-height: 280px; }
+      .palette { grid-template-columns: 1fr 1fr; }
+      .swatch, .swatch.wide { grid-column: auto; min-height: 170px; }
+      .window-body { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .workspace { padding: 28px 20px; }
+      .tool-row { grid-template-columns: 40px 1fr auto; }
+      .tool-row .action { display: none; }
+    }
+    @media (max-width: 520px) {
+      h1 { font-size: 66px; }
+      .edition { display: none; }
+      .hero-copy { font-size: 17px; }
+      .icon-stage { min-height: 330px; }
+      .marks { display: block; }
+      .mark-card { margin-bottom: 12px; }
+      .mark-lockup { gap: 14px; }
+      .mark-lockup img { width: 76px; }
+      .palette { grid-template-columns: 1fr; }
+      .icon-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .icon-option { padding: 10px; }
+      .candidate-meta span { display: none; }
+      .mini-icon { width: 18px; height: 18px; }
+      .type-card { min-height: 330px; }
+      .ui-board { padding: 8px; }
+      .workspace h3 { font-size: 34px; }
+      footer { gap: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="shell topbar">
+    <div class="wordmark"><img src="./mark.svg" alt=""><span>hoist</span><span class="edition">brand yard 01</span></div>
+    <nav><a href="#mark">Mark</a><a href="#faces">Faces</a><a href="#icons">Icons</a><a href="#colour">Colour</a><a href="#type">Type</a><a href="#interface">Interface</a></nav>
+  </header>
+
+  <main>
+    <section class="shell hero">
+      <div>
+        <div class="eyebrow reveal">Identity system / 2026</div>
+        <h1 class="reveal">Lift your<br>tools <span>into<br>place.</span></h1>
+        <p class="hero-copy reveal">Hoist is the setup rig for AI coding tools. Its identity feels engineered, dependable and active: less black-box magic, more visible machinery.</p>
+        <div class="hero-meta reveal"><span class="tag">Industrial, not heavy</span><span class="tag">Warm, not cute</span><span class="tag">Technical, not sterile</span></div>
+      </div>
+      <div class="icon-stage reveal">
+        <img class="app-icon" src="../../build/icon.svg" alt="Hoist app icon: a cream gantry lifting an orange load">
+        <span class="dimension">1024 × 1024 / MASTER SVG</span>
+      </div>
+    </section>
+
+    <section class="section" id="mark">
+      <div class="shell">
+        <div class="section-head"><div class="section-no">01 / THE LIFT GATE</div><h2>A gantry, an H, and one clear direction.</h2></div>
+        <div class="marks">
+          <div class="mark-card dark">
+            <div class="mark-lockup"><img src="./mark.svg" alt="" style="filter:brightness(0) invert(1)"><strong>hoist</strong></div>
+            <div class="spec-label"><span>Primary lockup</span><span>Canvas on midnight</span></div>
+          </div>
+          <div class="mark-card orange small">
+            <div class="mark-lockup"><img src="./mark.svg" alt=""></div>
+            <div class="spec-label"><span>Signal field</span><span>Dark mark</span></div>
+          </div>
+          <div class="mark-card light small">
+            <div class="mark-lockup"><img src="./mark.svg" alt=""></div>
+            <div class="spec-label"><span>Utility</span><span>One colour</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="faces">
+      <div class="shell">
+        <div class="section-head"><div class="section-no">01A / FACE LAB</div><h2>A helpful face, built from lifting machinery.</h2></div>
+        <div class="icon-lab">
+          <div class="icon-grid" id="face-grid"></div>
+          <aside class="icon-bench" aria-live="polite">
+            <div class="bench-content">
+              <div class="bench-label"><span>Face bench</span><span>Selected direction</span></div>
+              <div class="bench-stage" id="face-bench-stage"></div>
+              <div class="bench-detail"><h3 id="face-bench-name"></h3><p id="face-bench-note"></p><div class="bench-sizes" id="face-bench-sizes"></div></div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="icons">
+      <div class="shell">
+        <div class="section-head"><div class="section-no">01B / MECHANICAL LAB</div><h2>One product. Six ways to lift.</h2></div>
+        <div class="icon-lab">
+          <div class="icon-grid" id="icon-grid">
+            <button class="icon-option is-active" type="button" data-name="Lift Gate" data-note="The full product story: a sturdy gantry lifting a configured payload. Most ownable and clearest at large sizes.">
+              <svg class="candidate-icon" viewBox="0 0 100 100" role="img" aria-label="Lift Gate icon">
+                <rect width="100" height="100" rx="23" fill="#17212B"/>
+                <path fill="#F5F0E6" fill-rule="evenodd" d="M23 20h54a4 4 0 0 1 4 4v56a3 3 0 0 1-3 3h-9a3 3 0 0 1-3-3V55H34v25a3 3 0 0 1-3 3h-9a3 3 0 0 1-3-3V24a4 4 0 0 1 4-4Zm11 14v9h32v-9H34Z"/>
+                <path d="M50 34v22" stroke="#F06A3C" stroke-width="3" stroke-linecap="round"/><path d="m50 31-5 7h10l-5-7Z" fill="#FFB056"/>
+                <path d="M39 58a3 3 0 0 1 3-3h16a3 3 0 0 1 3 3v14a3 3 0 0 1-1 2l-8 5a4 4 0 0 1-4 0l-8-5a3 3 0 0 1-1-2V58Z" fill="#F06A3C"/>
+              </svg>
+              <div class="candidate-meta"><div><strong>01 / Lift Gate</strong><span>Gantry + payload</span></div><svg class="mini-icon" viewBox="0 0 100 100"><use href="#noop"/></svg></div>
+            </button>
+
+            <button class="icon-option" type="button" data-name="Twin Rails" data-note="The most compact systems metaphor. Two stable rails surround one upward-moving signal. Strongest at 16–32 px.">
+              <svg class="candidate-icon" viewBox="0 0 100 100" role="img" aria-label="Twin Rails icon">
+                <rect width="100" height="100" rx="23" fill="#17212B"/>
+                <rect x="22" y="18" width="15" height="64" rx="7.5" fill="#F5F0E6"/><rect x="63" y="18" width="15" height="64" rx="7.5" fill="#F5F0E6"/>
+                <path d="M50 22v29" stroke="#FFB056" stroke-width="5" stroke-linecap="round"/><path d="m50 17-8 10h16L50 17Z" fill="#FFB056"/>
+                <rect x="41" y="49" width="18" height="21" rx="4" fill="#F06A3C"/><path d="m42 53 8 5 8-5M50 58v10" fill="none" stroke="#FFD29E" stroke-width="1.5"/>
+              </svg>
+              <div class="candidate-meta"><div><strong>02 / Twin Rails</strong><span>Motion + stability</span></div><span class="mini-icon"></span></div>
+            </button>
+
+            <button class="icon-option" type="button" data-name="Block &amp; Tackle" data-note="The literal hoist mechanism. Distinctive and mechanical, with a circular silhouette that stands apart from developer-tool logos.">
+              <svg class="candidate-icon" viewBox="0 0 100 100" role="img" aria-label="Block and tackle icon">
+                <rect width="100" height="100" rx="23" fill="#F06A3C"/>
+                <circle cx="50" cy="35" r="19" fill="#17212B"/><circle cx="50" cy="35" r="9" fill="#F5F0E6"/>
+                <path d="M50 44v22c0 9 12 10 15 2" fill="none" stroke="#17212B" stroke-width="8" stroke-linecap="round"/>
+                <path d="M39 72c4 10 18 14 27 3" fill="none" stroke="#F5F0E6" stroke-width="5" stroke-linecap="round"/>
+              </svg>
+              <div class="candidate-meta"><div><strong>03 / Block &amp; Tackle</strong><span>Pulley + hook</span></div><span class="mini-icon"></span></div>
+            </button>
+
+            <button class="icon-option" type="button" data-name="Rising Cargo" data-note="A product-first metaphor: configuration is a precise package being raised into position. Friendly, dimensional and good for animation.">
+              <svg class="candidate-icon" viewBox="0 0 100 100" role="img" aria-label="Rising cargo icon">
+                <rect width="100" height="100" rx="23" fill="#17212B"/>
+                <path d="m50 15 9 12h-6v16h-6V27h-6l9-12Z" fill="#FFB056"/>
+                <path d="M29 43 50 31l21 12v27L50 83 29 70V43Z" fill="#F06A3C"/><path d="m29 43 21 13 21-13M50 56v27" fill="none" stroke="#FFD29E" stroke-width="2"/>
+                <path d="M22 78h12M66 78h12" stroke="#F5F0E6" stroke-width="5" stroke-linecap="round"/>
+              </svg>
+              <div class="candidate-meta"><div><strong>04 / Rising Cargo</strong><span>Package + ascent</span></div><span class="mini-icon"></span></div>
+            </button>
+
+            <button class="icon-option" type="button" data-name="Counterweight H" data-note="The most monogrammatic route. The crossbar becomes the load and the negative space becomes an upward signal.">
+              <svg class="candidate-icon" viewBox="0 0 100 100" role="img" aria-label="Counterweight H icon">
+                <rect width="100" height="100" rx="23" fill="#F5F0E6"/>
+                <path d="M18 20h18v21h28V20h18v60H64V59H36v21H18V20Z" fill="#17212B"/>
+                <path d="m50 32 12 14h-7v18H45V46h-7l12-14Z" fill="#F06A3C"/>
+              </svg>
+              <div class="candidate-meta"><div><strong>05 / Counterweight H</strong><span>Monogram + signal</span></div><span class="mini-icon"></span></div>
+            </button>
+
+            <button class="icon-option" type="button" data-name="Overhead Hook" data-note="A bold, literal tool silhouette. It feels rugged and native to utilities, but carries less of the multi-tool platform story.">
+              <svg class="candidate-icon" viewBox="0 0 100 100" role="img" aria-label="Overhead hook icon">
+                <rect width="100" height="100" rx="23" fill="#24313D"/>
+                <path d="M20 20h60v13H56v31c0 6-3 11-8 14-8 5-19 1-23-7l11-6c2 4 7 4 7-2V33H20V20Z" fill="#F5F0E6"/>
+                <path d="M43 33h13v16H43z" fill="#F06A3C"/>
+                <circle cx="36" cy="66" r="6" fill="#FFB056"/>
+              </svg>
+              <div class="candidate-meta"><div><strong>06 / Overhead Hook</strong><span>Beam + hook</span></div><span class="mini-icon"></span></div>
+            </button>
+          </div>
+
+          <aside class="icon-bench" aria-live="polite">
+            <div class="bench-content">
+              <div class="bench-label"><span>Live bench</span><span>Selected direction</span></div>
+              <div class="bench-stage" id="bench-stage"></div>
+              <div class="bench-detail"><h3 id="bench-name">Lift Gate</h3><p id="bench-note">The full product story: a sturdy gantry lifting a configured payload. Most ownable and clearest at large sizes.</p><div class="bench-sizes" id="bench-sizes"></div></div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="colour">
+      <div class="shell">
+        <div class="section-head"><div class="section-no">02 / RIGGING YARD</div><h2>Warm canvas. Cold steel. A flash of safety orange.</h2></div>
+        <div class="palette">
+          <div class="swatch wide light-text" style="background:#101820"><strong>Midnight 950</strong><code>#101820 / primary field</code></div>
+          <div class="swatch wide dark-text" style="background:#F5F0E6"><strong>Canvas 100</strong><code>#F5F0E6 / light field</code></div>
+          <div class="swatch light-text" style="background:#24313D"><strong>Steel 800</strong><code>#24313D / raised</code></div>
+          <div class="swatch dark-text" style="background:#E6DFD1"><strong>Canvas 200</strong><code>#E6DFD1 / border</code></div>
+          <div class="swatch dark-text" style="background:#F06A3C"><strong>Signal 500</strong><code>#F06A3C / action</code></div>
+          <div class="swatch dark-text" style="background:#52C7A5"><strong>Mint 500</strong><code>#52C7A5 / healthy</code></div>
+          <div class="swatch dark-text" style="background:#60A5FA"><strong>Sky 500</strong><code>#60A5FA / information</code></div>
+          <div class="swatch light-text" style="background:#E65353"><strong>Danger 500</strong><code>#E65353 / blocked</code></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="type">
+      <div class="shell">
+        <div class="section-head"><div class="section-no">03 / VOICE &amp; TYPE</div><h2>Human instructions, machine-readable details.</h2></div>
+        <div class="type-grid">
+          <div class="type-card"><div class="type-display">Aa<br>Hoist.</div><div class="type-note"><strong>Manrope 800</strong><span>Display / UI / guidance</span></div></div>
+          <div class="type-card"><div class="type-mono">$ hoist<br>doctor<br><span style="color:var(--hoist-mint-500)">all clear</span></div><div class="type-note"><strong>DM Mono 500</strong><span>Commands / versions / metadata</span></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="interface">
+      <div class="shell">
+        <div class="section-head"><div class="section-no">04 / IN PRODUCT</div><h2>The brand earns its keep inside the tool.</h2></div>
+        <div class="ui-board">
+          <div class="window">
+            <div class="window-bar"><div class="traffic"><i></i><i></i><i></i></div><div class="window-brand"><img src="./mark.svg" alt="">hoist</div><div class="mono" style="font-size:9px;color:#77828b">LOCAL VAULT / UNLOCKED</div></div>
+            <div class="window-body">
+              <aside class="sidebar">
+                <div class="side-label">Setup</div><div class="side-item active"><span>Library</span><span>12</span></div><div class="side-item"><span>Harnesses</span><span>4</span></div><div class="side-item"><span>Provider keys</span><span>6</span></div><div class="side-item"><span>Gateway</span><span>1</span></div>
+                <div class="side-label">Health</div><div class="side-item"><span>Watchtower</span><span>2</span></div><div class="side-item"><span>Doctor</span><span>0</span></div>
+              </aside>
+              <div class="workspace">
+                <h3>Your toolchain</h3><p>Harnesses, runtimes and package managers detected on this machine.</p>
+                <div class="tool-row"><div class="tool-icon">C</div><div class="tool-name"><strong>Claude Code</strong><span>2.1.226 / npm global</span></div><span class="status">installed</span><button class="action">Configure</button></div>
+                <div class="tool-row"><div class="tool-icon">O</div><div class="tool-name"><strong>OpenCode</strong><span>1.2.8 / Homebrew</span></div><span class="status">installed</span><button class="action">Configure</button></div>
+                <div class="tool-row"><div class="tool-icon">›_</div><div class="tool-name"><strong>Codex</strong><span>0.101.0 / npm global</span></div><span class="status">installed</span><button class="action">Configure</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="shell">
+        <div class="section-head"><div class="section-no">05 / OPERATING RULES</div><h2>Three checks keep the system recognisably Hoist.</h2></div>
+        <div class="principles">
+          <article class="principle"><span class="num">01</span><h3>Show the machinery</h3><p>Name files, paths, versions and consequences. Confidence comes from visible work, not vague automation.</p></article>
+          <article class="principle"><span class="num">02</span><h3>Signal with purpose</h3><p>Orange means action. Mint means healthy. Keep chromatic colour scarce enough that every flash carries meaning.</p></article>
+          <article class="principle"><span class="num">03</span><h3>Use plain verbs</h3><p>Install. Connect. Check. Repair. Hoist sounds capable and direct, never clever at the user’s expense.</p></article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="shell"><span>Hoist identity / direction 01</span><span>Built for echoHello</span></footer>
+  <script>
+    const faceIcons = [
+      {
+        name: 'Hookface',
+        label: 'Hook jaw',
+        note: 'Closest to the Finder instinct. Two squared eyes sit above a long J-shaped lifting hook that doubles as a nose and friendly jaw.',
+        bg: '#F5F0E6',
+        art: `<path d="M16 21h28v21H16v-8h18v-5H16v-8Zm40 0h28v13H70v8h14v8H56V21Z" fill="#17212B"/><path d="M50 21h15v40c0 4 5 7 9 4 2-2 3-5 2-8l13 4c1 14-9 25-26 25-17 0-28-10-28-24 0-4 1-8 2-11l14 3c-1 2-1 5-1 7 0 7 5 12 12 12 5 0 8-3 8-8 0-4-2-7-5-10L50 43V21Z" fill="#17212B"/>`
+      },
+      {
+        name: 'Signal Hook',
+        label: 'Face + accent',
+        note: 'The clearest evolution of Hookface. The orange cable separates the product action from the calm, dark facial features.',
+        bg: '#F5F0E6',
+        art: `<rect x="17" y="23" width="25" height="10" rx="2" fill="#17212B"/><rect x="58" y="23" width="25" height="10" rx="2" fill="#17212B"/><path d="M50 20v38c0 10 8 17 18 17 9 0 16-6 18-14" fill="none" stroke="#F06A3C" stroke-width="11" stroke-linecap="round"/><path d="m50 16-9 12h18L50 16Z" fill="#FFB056"/><path d="M21 58c4 17 18 27 34 27" fill="none" stroke="#17212B" stroke-width="8" stroke-linecap="round"/>`
+      },
+      {
+        name: 'Split Finder',
+        label: 'Two-sided face',
+        note: 'A direct nod to classic desktop utilities. The split field represents personal and enterprise setup while the shared hook joins both sides.',
+        bg: '#F5F0E6',
+        art: `<path d="M50 0h27a23 23 0 0 1 23 23v54a23 23 0 0 1-23 23H50V0Z" fill="#F06A3C"/><path d="M20 25h22v9H20zM58 25h22v9H58z" fill="#17212B"/><path d="M50 17v42c0 10 8 18 18 18 8 0 15-5 18-12" fill="none" stroke="#17212B" stroke-width="9" stroke-linecap="round"/><path d="M18 61c5 14 17 23 32 23" fill="none" stroke="#17212B" stroke-width="9" stroke-linecap="round"/>`
+      },
+      {
+        name: 'Pulley Nose',
+        label: 'Pulley + smile',
+        note: 'A softer, more characterful mascot route. The pulley becomes a round nose while its cable turns into a hooked smile.',
+        bg: '#17212B',
+        art: `<rect x="18" y="23" width="23" height="9" rx="4.5" fill="#F5F0E6"/><rect x="59" y="23" width="23" height="9" rx="4.5" fill="#F5F0E6"/><circle cx="50" cy="47" r="12" fill="#F06A3C"/><circle cx="50" cy="47" r="5" fill="#17212B"/><path d="M50 59v6c0 9 8 16 18 16 8 0 14-4 17-10" fill="none" stroke="#F5F0E6" stroke-width="7" stroke-linecap="round"/><path d="M17 65c4 10 12 16 23 16" fill="none" stroke="#F5F0E6" stroke-width="7" stroke-linecap="round"/>`
+      },
+      {
+        name: 'Cargo Nose',
+        label: 'Load + grin',
+        note: 'The face carries the configured payload visibly. Friendly and highly animatable, though slightly more detailed at small sizes.',
+        bg: '#17212B',
+        art: `<rect x="18" y="22" width="24" height="9" rx="2" fill="#F5F0E6"/><rect x="58" y="22" width="24" height="9" rx="2" fill="#F5F0E6"/><path d="M50 18v19" stroke="#FFB056" stroke-width="4" stroke-linecap="round"/><path d="M39 40 50 34l11 6v14L50 61 39 54V40Z" fill="#F06A3C"/><path d="m39 40 11 7 11-7M50 47v14" fill="none" stroke="#FFD29E" stroke-width="1.5"/><path d="M22 66c6 13 16 19 28 19s23-6 28-19" fill="none" stroke="#F5F0E6" stroke-width="7" stroke-linecap="round"/>`
+      },
+      {
+        name: 'Winking Crane',
+        label: 'Asymmetric face',
+        note: 'A playful desktop companion. One eye becomes a crane boom and its suspended hook forms the nose.',
+        bg: '#F06A3C',
+        art: `<path d="M15 24h31v10H15zM59 24h25v9H69v8H59V24Z" fill="#17212B"/><path d="M65 33v25c0 5-4 8-8 8" fill="none" stroke="#17212B" stroke-width="7" stroke-linecap="round"/><circle cx="54" cy="66" r="5" fill="#F5F0E6"/><path d="M20 66c6 14 18 21 31 21 11 0 21-4 28-13" fill="none" stroke="#17212B" stroke-width="8" stroke-linecap="round"/>`
+      },
+      {
+        name: 'Gantry Grin',
+        label: 'Gate + face',
+        note: 'The existing app mark becomes the full head. The hanging orange block reads as both payload and nose.',
+        bg: '#17212B',
+        art: `<path fill="#F5F0E6" fill-rule="evenodd" d="M18 17h64v66H68V56H32v27H18V17Zm14 14v12h36V31H32Z"/><path d="M50 31v21" stroke="#F06A3C" stroke-width="4"/><rect x="42" y="49" width="16" height="17" rx="4" fill="#F06A3C"/><path d="M35 72c4 8 10 12 15 12s12-4 15-12" fill="none" stroke="#FFB056" stroke-width="4" stroke-linecap="round"/>`
+      },
+      {
+        name: 'Lift Smile',
+        label: 'Arrow mouth',
+        note: 'An extremely reduced face for dock and menu-bar use. The smile itself rises, making the product benefit immediate.',
+        bg: '#F5F0E6',
+        art: `<rect x="18" y="25" width="23" height="10" rx="2" fill="#17212B"/><rect x="59" y="25" width="23" height="10" rx="2" fill="#17212B"/><path d="M20 58c8 18 21 27 30 27s22-9 30-27" fill="none" stroke="#17212B" stroke-width="9" stroke-linecap="round"/><path d="M50 69V43" stroke="#F06A3C" stroke-width="8" stroke-linecap="round"/><path d="m50 35-10 13h20L50 35Z" fill="#F06A3C"/>`
+      },
+      {
+        name: 'Cable Face',
+        label: 'Monoline utility',
+        note: 'A lighter, technical interpretation. A single cable draws the nose and hook-mouth, suitable for menu bars and monochrome contexts.',
+        bg: '#F5F0E6',
+        art: `<path d="M18 28h22M60 28h22" stroke="#17212B" stroke-width="8" stroke-linecap="square"/><path d="M50 18v42c0 13 9 22 22 22 8 0 14-4 18-10" fill="none" stroke="#17212B" stroke-width="8" stroke-linecap="round"/><path d="M12 62c4 12 13 20 25 20" fill="none" stroke="#F06A3C" stroke-width="8" stroke-linecap="round"/><circle cx="50" cy="18" r="5" fill="#FFB056"/>`
+      },
+      {
+        name: 'Counterweight',
+        label: 'Balanced eyes',
+        note: 'A composed, dependable face. One eye is the lifted load and the other its counterweight, balanced over a hook-shaped smile.',
+        bg: '#24313D',
+        art: `<rect x="18" y="22" width="24" height="14" rx="3" fill="#F06A3C"/><rect x="58" y="22" width="24" height="14" rx="3" fill="#F5F0E6"/><path d="M30 22V14h40v8M50 14v45c0 12 8 21 21 21 8 0 14-4 18-10" fill="none" stroke="#F5F0E6" stroke-width="6" stroke-linecap="round"/><path d="M13 62c5 11 13 18 25 18" fill="none" stroke="#FFB056" stroke-width="6" stroke-linecap="round"/>`
+      },
+      {
+        name: 'Friendly H',
+        label: 'Monogram face',
+        note: 'The most logo-like option. An H holds two eyes while the orange center stroke becomes the nose and lifting signal.',
+        bg: '#F5F0E6',
+        art: `<path d="M16 18h18v25h32V18h18v64H66V59H34v23H16V18Z" fill="#17212B"/><rect x="24" y="29" width="10" height="7" fill="#F5F0E6"/><rect x="66" y="29" width="10" height="7" fill="#F5F0E6"/><path d="M50 31v29" stroke="#F06A3C" stroke-width="8" stroke-linecap="round"/><path d="m50 23-10 13h20L50 23Z" fill="#F06A3C"/><path d="M38 68c4 5 8 7 12 7s8-2 12-7" fill="none" stroke="#F5F0E6" stroke-width="4" stroke-linecap="round"/>`
+      },
+      {
+        name: 'Dock Buddy',
+        label: 'Soft companion',
+        note: 'The warmest option. Rounded eyes and a broad hook smile make Hoist feel like a helpful setup companion rather than infrastructure.',
+        bg: '#FFB056',
+        art: `<rect x="18" y="22" width="24" height="13" rx="6.5" fill="#17212B"/><rect x="58" y="22" width="24" height="13" rx="6.5" fill="#17212B"/><path d="M50 21v39c0 12 9 21 21 21 8 0 14-4 18-10" fill="none" stroke="#17212B" stroke-width="9" stroke-linecap="round"/><path d="M12 61c5 12 14 20 26 20" fill="none" stroke="#17212B" stroke-width="9" stroke-linecap="round"/><circle cx="50" cy="20" r="5" fill="#F06A3C"/>`
+      }
+    ]
+
+    const faceGrid = document.querySelector('#face-grid')
+    const faceBenchStage = document.querySelector('#face-bench-stage')
+    const faceBenchSizes = document.querySelector('#face-bench-sizes')
+    const faceBenchName = document.querySelector('#face-bench-name')
+    const faceBenchNote = document.querySelector('#face-bench-note')
+
+    function faceSvg(icon) {
+      return `<svg class="candidate-icon" viewBox="0 0 100 100" role="img" aria-label="${icon.name} icon"><rect width="100" height="100" rx="23" fill="${icon.bg}"/>${icon.art}</svg>`
+    }
+
+    faceGrid.innerHTML = faceIcons.map((icon, index) => `<button class="icon-option face-option${index === 0 ? ' is-active' : ''}" type="button" data-index="${index}">${faceSvg(icon)}<div class="candidate-meta"><div><strong>${String(index + 1).padStart(2, '0')} / ${icon.name}</strong><span>${icon.label}</span></div>${faceSvg(icon)}</div></button>`).join('')
+
+    function selectFace(index) {
+      const icon = faceIcons[index]
+      document.querySelectorAll('.face-option').forEach((item, itemIndex) => item.classList.toggle('is-active', itemIndex === index))
+      faceBenchStage.innerHTML = faceSvg(icon)
+      faceBenchSizes.innerHTML = faceSvg(icon).repeat(3)
+      faceBenchName.textContent = icon.name
+      faceBenchNote.textContent = icon.note
+    }
+
+    document.querySelectorAll('.face-option').forEach((option) => option.addEventListener('click', () => selectFace(Number(option.dataset.index))))
+    document.querySelectorAll('.face-option .candidate-meta svg').forEach((icon) => icon.classList.add('mini-icon'))
+    selectFace(0)
+
+    const options = [...document.querySelectorAll('#icon-grid .icon-option')]
+    const benchStage = document.querySelector('#bench-stage')
+    const benchSizes = document.querySelector('#bench-sizes')
+    const benchName = document.querySelector('#bench-name')
+    const benchNote = document.querySelector('#bench-note')
+
+    function selectIcon(option) {
+      options.forEach((item) => item.classList.toggle('is-active', item === option))
+      const icon = option.querySelector('.candidate-icon')
+      const mini = option.querySelector('.mini-icon')
+      benchStage.replaceChildren(icon.cloneNode(true))
+      benchSizes.replaceChildren(...[48, 32, 20].map(() => icon.cloneNode(true)))
+      if (mini) mini.replaceWith(icon.cloneNode(true))
+      option.querySelector('.candidate-meta svg')?.classList.add('mini-icon')
+      benchName.textContent = option.dataset.name
+      benchNote.textContent = option.dataset.note
+    }
+
+    options.forEach((option) => option.addEventListener('click', () => selectIcon(option)))
+    options.forEach((option) => {
+      const icon = option.querySelector('.candidate-icon')
+      const mini = option.querySelector('.mini-icon')
+      if (mini && mini.tagName !== 'svg') mini.replaceWith(icon.cloneNode(true))
+      option.querySelector('.candidate-meta svg')?.classList.add('mini-icon')
+    })
+    selectIcon(options[0])
+  </script>
+</body>
+</html>

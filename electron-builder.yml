@@ -5,15 +5,20 @@ directories:
 files:
   - dist/**/*
 mac:
+  icon: build/icon.icon
   target:
     - dmg
     - zip
   artifactName: ${name}-${version}-mac-${arch}.${ext}
+dmg:
+  icon: build/icon.icns
 win:
+  icon: build/icon.ico
   target:
     - nsis
   artifactName: ${name}-${version}-win-${arch}.${ext}
 linux:
+  icon: build/icons
   target:
     - AppImage
   artifactName: ${name}-${version}-linux-${arch}.${ext}

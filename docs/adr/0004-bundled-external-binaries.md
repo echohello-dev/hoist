@@ -1,7 +1,8 @@
 ---
 number: 0004
 date: 2026-06-26
-status: accepted
+status: superseded
+superseded_by: 0005
 ---
 
 # 0004. Bundled External Binaries for Secret Backends

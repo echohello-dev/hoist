@@ -377,8 +377,8 @@ export function App() {
           ? cur
           : (harnesses.find((e) => e.primary)?.id ?? harnesses[0]?.id ?? cur)
       })
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('[hoist] library.list failed:', err)
     }
   }, [])
 
@@ -411,7 +411,8 @@ export function App() {
         if (cur && rows.some((r) => r.secretId === cur)) return cur
         return rows[0]?.secretId ?? null
       })
-    } catch {
+    } catch (err) {
+      console.error('[hoist] refreshKeys failed:', err)
       setKeys([])
     }
   }, [])
@@ -423,7 +424,8 @@ export function App() {
       setSelectedGatewayId((cur) => (
         list.some((g) => g.id === cur) ? cur : (list[0]?.id ?? cur)
       ))
-    } catch {
+    } catch (err) {
+      console.error('[hoist] gateway.list failed:', err)
       setGateways([])
     }
   }, [])

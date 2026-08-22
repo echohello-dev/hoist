@@ -513,12 +513,14 @@ function entriesFromInstalls(
 async function discoverHarnesses(): Promise<LibraryEntry[]> {
   const out: LibraryEntry[] = []
   for (const entry of HARNESS_CATALOG) {
-    const binary =
-      entry.installMethods[0]?.type === 'npm'
-        ? (entry.installMethods[0] as { binary?: string }).binary ?? entry.id
-        : entry.id
+    // Binary names can live on any install method (npm/binary, brew, …) and
+    // may differ from the catalog id (claude-code → claude).
+    const named = entry.installMethods
+      .map((m) => (m as { binary?: string }).binary)
+      .filter((b): b is string => Boolean(b))
+    const binaries = named.length > 0 ? [...new Set(named)] : [entry.id]
 
-    const installs = await collectInstalls([binary], entry.name, ['--version'])
+    const installs = await collectInstalls(binaries, entry.name, ['--version'])
 
     let config = emptyConfig(installs.length ? 'binary not configured' : 'binary not on PATH')
     if (installs.length > 0) {

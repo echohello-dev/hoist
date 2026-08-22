@@ -5,6 +5,9 @@ import { registerIpcHandlers } from './ipc'
 let mainWindow: BrowserWindow | null = null
 
 app.setName('Hoist')
+if (process.platform === 'win32') {
+  app.setAppUserModelId('app.hoist')
+}
 
 const appIcon = nativeImage.createFromPath(join(__dirname, '../../build/icon.png'))
 
@@ -16,7 +19,7 @@ async function applyLiquidGlass(handle: Buffer): Promise<void> {
   if (process.platform !== 'darwin') return
   try {
     const { default: liquidGlass } = await import('electron-liquid-glass')
-    liquidGlass(handle, { cornerRadius: 12, tintColor: '#12121459' })
+    liquidGlass.addView(handle, { cornerRadius: 12, tintColor: '#12121459' })
   } catch { /* glass unsupported on this macOS version — window stays transparent */ }
 }
 
@@ -63,9 +66,6 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  if (process.platform === 'darwin' && !app.isPackaged) {
-    app.dock?.setIcon(appIcon)
-  }
   registerIpcHandlers()
   createWindow()
 })

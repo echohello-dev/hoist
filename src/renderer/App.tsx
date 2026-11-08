@@ -39,7 +39,7 @@ import {
   type DoctorAction,
   type DoctorFinding,
 } from '../shared/doctor'
-import { providerIdFromSecretId, secretIdForProvider } from '../shared/secrets'
+import { isProviderConfigSecretId, providerIdFromSecretId, secretIdForProvider, secretIdForProviderConfig } from '../shared/secrets'
 
 declare global {
   interface Window {
@@ -394,7 +394,7 @@ export function App() {
         return
       }
       const byId = new Map(providerList.map((p) => [p.id, p]))
-      const rows: KeyRow[] = vaultRes.entries.map((e: VaultEntry) => {
+      const rows: KeyRow[] = vaultRes.entries.filter((e: VaultEntry) => !isProviderConfigSecretId(e.id)).map((e: VaultEntry) => {
         const pid = providerIdFromSecretId(e.id) ?? e.id
         const prov = byId.get(pid)
         return {
@@ -504,7 +504,15 @@ export function App() {
     try {
       const res = await window.hoist.vault.delete(secretId)
       if (!res.ok) showToast(res.error ?? 'Delete failed')
-      else showToast('Key deleted')
+      else {
+        const pid = providerIdFromSecretId(secretId)
+        if (pid) {
+          for (const field of ['project', 'region'] as const) {
+            await window.hoist.vault.delete(secretIdForProviderConfig(pid, field)).catch(() => undefined)
+          }
+        }
+        showToast('Key deleted')
+      }
       await refreshKeys()
     } catch (err) {
       showToast(err instanceof Error ? err.message : String(err))
@@ -523,10 +531,16 @@ export function App() {
     }
   }, [showToast])
 
-  const saveKey = useCallback(async (providerId: string, value: string, label: string) => {
+  const saveKey = useCallback(async (providerId: string, value: string, label: string, config?: { project: string; region: string }) => {
     const id = secretIdForProvider(providerId)
     const res = await window.hoist.vault.set({ id, value, label })
     if (!res.ok) throw new Error(res.error ?? 'Failed to save key')
+    if (config) {
+      const projectRes = await window.hoist.vault.set({ id: secretIdForProviderConfig(providerId, 'project'), value: config.project, label: `${label} project` })
+      if (!projectRes.ok) throw new Error(projectRes.error ?? 'Failed to save project')
+      const regionRes = await window.hoist.vault.set({ id: secretIdForProviderConfig(providerId, 'region'), value: config.region, label: `${label} region` })
+      if (!regionRes.ok) throw new Error(regionRes.error ?? 'Failed to save region')
+    }
     await refreshKeys()
     setSelectedKeyId(id)
     // Best-effort probe after save
@@ -775,8 +789,8 @@ export function App() {
           providers={providers}
           existingIds={new Set(keys.map((k) => k.providerId))}
           onClose={() => setAddKeyOpen(false)}
-          onSave={async (providerId, value, label) => {
-            await saveKey(providerId, value, label)
+          onSave={async (providerId, value, label, config) => {
+            await saveKey(providerId, value, label, config)
             setAddKeyOpen(false)
           }}
         />
@@ -2087,17 +2101,20 @@ function AddKeyModal({
   providers: ProviderSummary[]
   existingIds: Set<string>
   onClose: () => void
-  onSave: (providerId: string, value: string, label: string) => Promise<void>
+  onSave: (providerId: string, value: string, label: string, config?: { project: string; region: string }) => Promise<void>
 }) {
   const [step, setStep] = useState<'pick' | 'enter'>('pick')
   const [picked, setPicked] = useState<ProviderSummary | null>(null)
   const [query, setQuery] = useState('')
   const [value, setValue] = useState('')
+  const [project, setProject] = useState('')
+  const [region, setRegion] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const isVertex = picked?.id === 'vertex'
 
   const list = providers
-    .filter((p) => p.envKeys && p.envKeys.length > 0)
+    .filter((p) => (p.envKeys && p.envKeys.length > 0) || p.id === 'vertex')
     .filter((p) => {
       if (!query) return true
       const q = query.toLowerCase()
@@ -2107,10 +2124,11 @@ function AddKeyModal({
 
   const submit = async () => {
     if (!picked || !value.trim()) return
+    if (isVertex && (!project.trim() || !region.trim())) return
     setSaving(true)
     setError(null)
     try {
-      await onSave(picked.id, value.trim(), picked.label)
+      await onSave(picked.id, value.trim(), picked.label, isVertex ? { project: project.trim(), region: region.trim() } : undefined)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
       setSaving(false)
@@ -2151,7 +2169,7 @@ function AddKeyModal({
                         {p.label}
                         {existingIds.has(p.id) && <span className="badge" style={{ marginLeft: 6 }}>stored</span>}
                       </div>
-                      <div className="hoist-catalogue-tile-sub muted mono">{p.envKeys[0]}</div>
+                      <div className="hoist-catalogue-tile-sub muted mono">{p.envKeys[0] ?? 'PROJECT + REGION'}</div>
                     </div>
                   </button>
                 ))}
@@ -2161,14 +2179,35 @@ function AddKeyModal({
             <div className="hoist-addkey-form">
               <p className="muted" style={{ marginTop: 0 }}>
                 Stored as <span className="mono">{secretIdForProvider(picked!.id)}</span>.
-                Env: <span className="mono">{picked!.envKeys[0]}</span>
+                {isVertex ? ' Project and region are stored beside the token.' : <> Env: <span className="mono">{picked!.envKeys[0]}</span></>}
               </p>
-              <label className="hoist-field-label" htmlFor="key-value">API key</label>
+              {isVertex && (
+                <>
+                  <label className="hoist-field-label" htmlFor="vertex-project">GCP project id</label>
+                  <input
+                    id="vertex-project"
+                    className="input input-lg"
+                    autoFocus
+                    placeholder="my-gcp-project"
+                    value={project}
+                    onChange={(e) => setProject(e.target.value)}
+                  />
+                  <label className="hoist-field-label" htmlFor="vertex-region">Region</label>
+                  <input
+                    id="vertex-region"
+                    className="input input-lg"
+                    placeholder="us-central1"
+                    value={region}
+                    onChange={(e) => setRegion(e.target.value)}
+                  />
+                </>
+              )}
+              <label className="hoist-field-label" htmlFor="key-value">{isVertex ? 'Access token' : 'API key'}</label>
               <input
                 id="key-value"
                 className="input input-lg"
                 type="password"
-                autoFocus
+                autoFocus={!isVertex}
                 placeholder="Paste secret…"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
@@ -2184,7 +2223,7 @@ function AddKeyModal({
                 <button
                   type="button"
                   className="btn btn-primary btn-sm btn-pill"
-                  disabled={saving || !value.trim()}
+                  disabled={saving || !value.trim() || (isVertex && (!project.trim() || !region.trim()))}
                   onClick={() => void submit()}
                 >
                   {saving ? 'Saving…' : 'Save key'}

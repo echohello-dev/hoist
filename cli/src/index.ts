@@ -12,6 +12,7 @@ import {
   listSecrets,
   maskSecret,
   secretIdFor,
+  secretIdForProviderConfig,
   setSecret,
 } from './lib/vault'
 import {
@@ -114,13 +115,26 @@ program
         process.exit(1)
       }
       const value = await getSecret(secretIdFor(provider.id))
-      if (!value) {
+      const needsKey = provider.probeKind !== 'aws'
+      if (!value && needsKey) {
         console.log(`No key stored for ${provider.id}. Run \`hoist keys set ${provider.id}\` first.`)
         process.exit(1)
       }
+      const storedProject =
+        provider.probeKind === 'gcp' ? await getSecret(secretIdForProviderConfig(provider.id, 'project')).catch(() => null) : null
+      const storedRegion =
+        provider.probeKind === 'gcp' || provider.probeKind === 'aws'
+          ? await getSecret(secretIdForProviderConfig(provider.id, 'region')).catch(() => null)
+          : null
+      const envEndpoint =
+        provider.probeKind === 'azure' && provider.baseUrlEnv ? process.env[provider.baseUrlEnv] : undefined
+      const baseUrl = provider.defaultBaseUrl ?? envEndpoint
       const s = p.spinner()
       s.start(`Probing ${provider.label}…`)
-      const result = await probeProvider(provider, value, provider.defaultBaseUrl)
+      const result = await probeProvider(provider, value ?? '', baseUrl, {
+        project: storedProject ?? undefined,
+        region: storedRegion ?? undefined,
+      })
       s.stop(`${result.valid ? '✓' : '✗'} ${result.status}${result.detail ? ` · ${result.detail}` : ''}`)
       process.exit(result.valid ? 0 : 1)
     }

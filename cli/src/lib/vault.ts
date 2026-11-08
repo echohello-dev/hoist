@@ -170,6 +170,13 @@ export function secretIdFor(providerId: string): string {
   return `provider:${providerId}:api_key`
 }
 
+export type ProviderConfigField = 'project' | 'region'
+
+/** Canonical vault secret id for a provider config field, matching src/shared/secrets.ts. */
+export function secretIdForProviderConfig(providerId: string, field: ProviderConfigField): string {
+  return `provider:${providerId}:${field}`
+}
+
 export function maskSecret(value: string): string {
   if (!value) return ''
   if (value.length <= 8) return '…'

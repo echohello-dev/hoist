@@ -8,4 +8,5 @@ cd "$MISE_PROJECT_ROOT/cli"
 
 bun install --frozen-lockfile
 bun run typecheck
+bun test
 bun build src/index.ts --compile --outfile="$HOIST_CLI_OUTFILE" --target="$HOIST_CLI_TARGET"

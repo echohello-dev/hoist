@@ -16,7 +16,7 @@ if (!existsSync(secretsJs)) {
 }
 
 const require = createRequire(import.meta.url)
-const { secretIdForProvider, providerIdFromSecretId } = require(secretsJs)
+const { secretIdForProvider, providerIdFromSecretId, secretIdForProviderConfig, providerConfigFromSecretId, isProviderConfigSecretId } = require(secretsJs)
 
 let failed = 0
 function assert(cond, msg) {
@@ -33,6 +33,16 @@ assert(providerIdFromSecretId('provider:anthropic:api_key') === 'anthropic', 'pa
 assert(providerIdFromSecretId('provider:openai:api_key') === 'openai', 'parse openai')
 assert(providerIdFromSecretId('random') === null, 'reject non-canonical')
 assert(providerIdFromSecretId(secretIdForProvider('groq')) === 'groq', 'round-trip')
+assert(secretIdForProviderConfig('vertex', 'project') === 'provider:vertex:project', 'vertex project secret id')
+assert(secretIdForProviderConfig('vertex', 'region') === 'provider:vertex:region', 'vertex region secret id')
+assert(JSON.stringify(providerConfigFromSecretId('provider:vertex:project')) === JSON.stringify({ providerId: 'vertex', field: 'project' }), 'parse vertex project config id')
+assert(JSON.stringify(providerConfigFromSecretId('provider:vertex:region')) === JSON.stringify({ providerId: 'vertex', field: 'region' }), 'parse vertex region config id')
+assert(providerConfigFromSecretId('provider:vertex:api_key') === null, 'api_key is not a config id')
+assert(providerConfigFromSecretId('provider:vertex:other') === null, 'unknown field is not a config id')
+assert(providerConfigFromSecretId('random') === null, 'reject non-canonical config id')
+assert(isProviderConfigSecretId('provider:vertex:project') === true, 'isProviderConfigSecretId accepts project')
+assert(isProviderConfigSecretId('provider:vertex:api_key') === false, 'isProviderConfigSecretId rejects api_key')
+assert(providerIdFromSecretId('provider:vertex:project') === null, 'config id does not parse as api_key')
 
 if (failed > 0) {
   console.error(`\n${failed} secrets assertion(s) failed`)

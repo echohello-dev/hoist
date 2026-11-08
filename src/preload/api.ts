@@ -186,6 +186,8 @@ export interface ProviderSummary {
   featured?: boolean
   envKeys: string[]
   baseUrlEnv?: string
+  authType?: string
+  probeKind?: string
   defaultBaseUrl?: string
   notes?: string
 }
@@ -243,6 +245,10 @@ export interface ProbeRequest {
   secretId?: string
   apiKey?: string
   baseUrl?: string
+  /** GCP project id for the Vertex probe. Falls back to the vault value in main. */
+  project?: string
+  /** Cloud region for the Vertex and Bedrock probes. Falls back to the vault value in main. */
+  region?: string
 }
 
 export interface ProbeResponse {

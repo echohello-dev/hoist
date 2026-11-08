@@ -4,6 +4,8 @@ import { createSafeStorageBackend } from './secrets/safestorage'
 import { maskSecret } from './secrets/backend'
 import type { SecretBackend } from './secrets/backend'
 import { runProbe } from './probes'
+import { buildProbeContext, probeRequiresApiKey } from './probes/context'
+import { secretIdForProviderConfig } from '../shared/secrets'
 import { runHarnessUsage, runProviderUsage } from './usage'
 import { libraryDiscover } from './library'
 import { discoverAll, installHarness, uninstallHarness } from './installer'
@@ -43,6 +45,8 @@ interface ProbeRequest {
   secretId?: string
   apiKey?: string
   baseUrl?: string
+  project?: string
+  region?: string
 }
 
 type UsageRequest =
@@ -312,14 +316,28 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(CHANNELS.probeRun, async (_evt, req: ProbeRequest) => {
     try {
+      const provider = findProvider(req.providerId)
       let apiKey = req.apiKey
       if (!apiKey && req.secretId) {
         apiKey = (await getBackend().get(req.secretId)) ?? undefined
       }
-      if (!apiKey) {
+      if (!apiKey && probeRequiresApiKey(provider?.probeKind)) {
         return { ok: false as const, error: 'No API key available for probe.' }
       }
-      const result = await runProbe({ providerId: req.providerId, apiKey, baseUrl: req.baseUrl })
+      const backend = getBackend()
+      const storedProject = req.project ? undefined : await backend.get(secretIdForProviderConfig(req.providerId, 'project')).catch(() => null)
+      const storedRegion = req.region ? undefined : await backend.get(secretIdForProviderConfig(req.providerId, 'region')).catch(() => null)
+      const result = await runProbe(
+        buildProbeContext({
+          providerId: req.providerId,
+          apiKey,
+          baseUrl: req.baseUrl,
+          project: req.project,
+          region: req.region,
+          storedProject,
+          storedRegion,
+        }),
+      )
       return { ok: true as const, result }
     } catch (err) {
       return { ok: false as const, error: errMsg(err) }

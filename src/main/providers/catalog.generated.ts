@@ -5,7 +5,7 @@
  *   src/main/providers/catalog.source.json
  * and run `npm run gen:catalog`.
  *
- * fingerprint: 3d35ef2c7f6a58e0  (entries: 18)
+ * fingerprint: e96a0df0e32f36db  (entries: 18)
  */
 
 import type { ProviderEntry } from './types'
@@ -68,7 +68,7 @@ export const PROVIDER_CATALOG: readonly ProviderEntry[] =
       "envKeys": [],
       "authType": "cloud_creds",
       "probeKind": "gcp",
-      "notes": "Uses ADC. Configure project + region in your gateway."
+      "notes": "Uses ADC. Wizard will ask for project + region first."
     },
     {
       "id": "bedrock",
@@ -79,7 +79,7 @@ export const PROVIDER_CATALOG: readonly ProviderEntry[] =
       "envKeys": [],
       "authType": "cloud_creds",
       "probeKind": "aws",
-      "notes": "Uses AWS credentials from the standard chain."
+      "notes": "Uses AWS credentials from the standard chain. Wizard validates them with a Bedrock ListFoundationModels call."
     },
     {
       "id": "azure-openai",

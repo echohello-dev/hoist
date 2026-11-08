@@ -41,7 +41,7 @@
       "envKeys": [],
       "authType": "cloud_creds",
       "probeKind": "gcp",
-      "notes": "Uses ADC. Configure project + region in your gateway."
+      "notes": "Uses ADC. Wizard will ask for project + region first."
     },
     {
       "id": "bedrock",
@@ -50,7 +50,7 @@
       "envKeys": [],
       "authType": "cloud_creds",
       "probeKind": "aws",
-      "notes": "Uses AWS credentials from the standard chain."
+      "notes": "Uses AWS credentials from the standard chain. Wizard validates them with a Bedrock ListFoundationModels call."
     },
     {
       "id": "azure-openai",

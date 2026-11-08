@@ -3,11 +3,21 @@ import type { ProviderEntry } from '../providers/types'
 import type { ToolInstallSpec } from '../../shared/types'
 import { applyClaudeCodeWiring, claudeCodeEnvFor } from './claudeCode'
 import { applyCodexWiring } from './codex'
+import { applyCodexAuthWiring } from './codexAuth'
 import { applyOpenCodeWiring } from './openCode'
+
+export { applyCodexAuthWiring, codexAuthPath, CODEX_AUTH_PLATFORM_NOTE } from './codexAuth'
+export type { CodexAuthOptions, CodexAuthResult, CodexAuthShape, CodexAuthWiring } from './codexAuth'
 
 export interface WireOptions {
   /** Vault-stored API key for the chosen provider. */
   apiKey: string
+  /** When false, skip writing credentials to harness files on disk. */
+  storeInFile?: boolean
+  /** Platform override for the Codex auth.json writer (tests). */
+  platform?: NodeJS.Platform
+  /** Home directory override for the Codex auth.json writer (tests). */
+  homeDir?: string
   /** Effective base URL after gateway resolution. */
   baseUrl: string
   /** Short harness id (matches HARNESS_CATALOG). */
@@ -39,7 +49,12 @@ export async function applyWiring(opts: WireOptions): Promise<WireResult[]> {
     out.push({ ...r, envHint: wiring.env })
   } else if (harness.id === 'codex') {
     const r = await applyCodexWiring({ baseUrl }, 'openai', 'gpt-4o')
-    out.push({ ...r, note: 'Codex reads OPENAI_API_KEY from auth.json or env.' })
+    out.push({ ...r })
+    const auth = await applyCodexAuthWiring(
+      { apiKey },
+      { homeDir: opts.homeDir, platform: opts.platform, storeInFile: opts.storeInFile },
+    )
+    out.push({ path: auth.path, changed: auth.changed, note: auth.note })
   } else if (harness.id === 'opencode') {
     const adapter =
       provider.probeKind === 'anthropicModels' ? '@ai-sdk/anthropic' : '@ai-sdk/openai-compatible'

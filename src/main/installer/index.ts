@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process'
-import { access, chmod, constants, mkdir, unlink, writeFile } from 'node:fs/promises'
+import { access, chmod, constants, mkdir, readFile, stat, unlink, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import which from 'which'
 import type { InstalledTool, ToolInstallMethod, ToolInstallSpec } from '../../shared/types'
 
@@ -81,7 +81,64 @@ async function readVersion(binary: string, args: string[] = ['--version']): Prom
 
 export interface DiscoverResult extends InstalledTool {}
 
+// Written by the OpenCode discovery plugin (src/opencode-plugin). Fresh
+// entries win over the which + npm-global probe; anything stale, malformed
+// or missing falls back to the probe with no behaviour change.
+export const DISCOVERY_CACHE_TTL_MS = 5 * 60 * 1000
+
+export interface DiscoveryCacheEntry {
+  path: string
+  version: string | null
+}
+
+export function discoveryCachePath(home: string = homedir()): string {
+  return join(home, '.cache', 'hoist', 'discovery.json')
+}
+
+export function parseDiscoveryCache(
+  raw: unknown,
+  mtimeMs: number,
+  now: number = Date.now(),
+): Record<string, DiscoveryCacheEntry> | null {
+  if (!Number.isFinite(mtimeMs) || now - mtimeMs > DISCOVERY_CACHE_TTL_MS) return null
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null
+  const out: Record<string, DiscoveryCacheEntry> = {}
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value !== 'object' || value === null) continue
+    const entry = value as Record<string, unknown>
+    if (typeof entry.path !== 'string' || entry.path.length === 0) continue
+    out[id] = {
+      path: entry.path,
+      version: typeof entry.version === 'string' && entry.version.length > 0 ? entry.version : null,
+    }
+  }
+  return Object.keys(out).length > 0 ? out : null
+}
+
+async function readDiscoveryCache(): Promise<Record<string, DiscoveryCacheEntry> | null> {
+  try {
+    const file = discoveryCachePath()
+    const [text, info] = await Promise.all([readFile(file, 'utf8'), stat(file)])
+    return parseDiscoveryCache(JSON.parse(text), info.mtimeMs)
+  } catch {
+    return null
+  }
+}
+
 export async function discoverInstalled(spec: ToolInstallSpec): Promise<DiscoverResult> {
+  const cached = (await readDiscoveryCache())?.[spec.id]
+  if (cached) {
+    try {
+      await access(cached.path, constants.X_OK)
+      const installMethod =
+        spec.installMethods.find((m) => binaryNameFor(m, spec.id) === basename(cached.path))
+        ?? spec.installMethods[0]
+        ?? null
+      return { spec, version: cached.version, path: cached.path, installMethod }
+    } catch {
+      // Stale path in a fresh cache file: fall through to the live probe.
+    }
+  }
   for (const method of spec.installMethods) {
     const binary = binaryNameFor(method, spec.id)
     const path = await resolveBinaryPath(binary)

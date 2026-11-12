@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026.11.0](https://github.com/echohello-dev/hoist/compare/v2026.8.0...v2026.11.0) (2026-11-12)
+
+
+### Features
+
+* **cli:** Bedrock, Vertex and Azure probe parity ([#52](https://github.com/echohello-dev/hoist/issues/52)) ([3a461a7](https://github.com/echohello-dev/hoist/commit/3a461a7d4f3bb2d6b59ccaf71f8d2ac91c8d055d))
+* **cli:** read OpenCode discovery cache before probing ([#54](https://github.com/echohello-dev/hoist/issues/54)) ([93c2a42](https://github.com/echohello-dev/hoist/commit/93c2a420c5c1e63f687e64f1cf0681b14b7dfaf2))
+* **installer:** read OpenCode discovery cache before probing ([#53](https://github.com/echohello-dev/hoist/issues/53)) ([141783e](https://github.com/echohello-dev/hoist/commit/141783e27fd8208837b474aefc5e6b645e2cd18f))
+* **keys:** store Vertex project and region in the vault ([#50](https://github.com/echohello-dev/hoist/issues/50)) ([479c07f](https://github.com/echohello-dev/hoist/commit/479c07fa5306a7783fe89cd7daaa216f7f9c3144))
+* **probes:** add Bedrock, Vertex and Azure probe kinds ([#48](https://github.com/echohello-dev/hoist/issues/48)) ([191c830](https://github.com/echohello-dev/hoist/commit/191c8302b4ae64472c42c85575d7facc9210a5e4))
+* **wiring:** write Codex OPENAI_API_KEY into auth.json ([#45](https://github.com/echohello-dev/hoist/issues/45)) ([b01234d](https://github.com/echohello-dev/hoist/commit/b01234d2ba798df0bf0fd402a0b8c27f33ad6fe6))
+
 ## 2026.8.0 (2026-08-24)
 
 

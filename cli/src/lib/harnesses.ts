@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
-import { access, constants } from 'node:fs/promises'
+import { access, constants, readFile, stat } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import which from 'which'
 
@@ -114,7 +115,32 @@ export interface DiscoveredHarness {
   version: string | null
 }
 
+// Same cache contract as src/main/installer and src/opencode-plugin.
+const DISCOVERY_CACHE_TTL_MS = 5 * 60 * 1000
+
+async function cachedHarness(spec: HarnessSpec): Promise<DiscoveredHarness | null> {
+  try {
+    const file = join(homedir(), '.cache', 'hoist', 'discovery.json')
+    const [text, info] = await Promise.all([readFile(file, 'utf8'), stat(file)])
+    if (Date.now() - info.mtimeMs > DISCOVERY_CACHE_TTL_MS) return null
+    const raw: unknown = JSON.parse(text)
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw) || !Object.hasOwn(raw, spec.id)) return null
+    const entry: unknown = (raw as Record<string, unknown>)[spec.id]
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) return null
+    const { path, version } = entry as Record<string, unknown>
+    if (typeof path !== 'string' || path.length === 0) return null
+    await access(path, constants.X_OK)
+    return { spec, installed: true, path, version: typeof version === 'string' && version.length > 0 ? version : null }
+  } catch {
+    return null
+  }
+}
+
 export async function discoverHarness(spec: HarnessSpec): Promise<DiscoveredHarness> {
+  return (await cachedHarness(spec)) ?? discoverLiveHarness(spec)
+}
+
+async function discoverLiveHarness(spec: HarnessSpec): Promise<DiscoveredHarness> {
   for (const method of spec.installMethods) {
     const path = await resolveBinary(binaryFor(method, spec.id))
     if (path) {
@@ -149,7 +175,7 @@ export async function installHarness(spec: HarnessSpec, opts: InstallOptions = {
     if (result.code !== 0) {
       throw new Error(`npm install -g ${pkg} failed:\n${result.stderr || result.stdout}`)
     }
-    return discoverHarness(spec)
+    return discoverLiveHarness(spec)
   }
 
   if (method.type === 'brew') {
@@ -171,7 +197,7 @@ export async function installHarness(spec: HarnessSpec, opts: InstallOptions = {
     if (result.code !== 0) {
       throw new Error(`brew ${brewArgs.join(' ')} failed:\n${result.stderr || result.stdout}`)
     }
-    return discoverHarness(spec)
+    return discoverLiveHarness(spec)
   }
 
   throw new Error(`Install method not supported: ${(method as InstallMethod).type}`)
